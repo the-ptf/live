@@ -55,6 +55,7 @@ const publicPeer = (peer) => ({
   tracks: peer.tracks,
   avatar: peer.avatar ?? null,
   host: Boolean(peer.host),
+  deafened: Boolean(peer.deafened),
 });
 
 function cleanAvatar(avatar) {
@@ -141,6 +142,11 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
         if (target.peer.client) store.put(`removed:${target.peer.client}`, "1");
         io.save(target.socket, null);
         io.close(target.socket, 4403, "removed");
+        return broadcast();
+      }
+      if (message?.type === "state") {
+        if (typeof message.deafened !== "boolean" || Boolean(entry.peer.deafened) === message.deafened) return;
+        io.save(socket, { ...entry.peer, deafened: message.deafened });
         return broadcast();
       }
       if (message?.type === "avatar") {

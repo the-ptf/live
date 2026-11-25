@@ -252,3 +252,16 @@ test("every roster change is reported with who has a camera or a screen", async 
     { event: "change", peers: [] },
   ]);
 });
+
+test("a peer's deafened state reaches everyone, and repeats or junk change nothing", async () => {
+  const { room, join } = harness();
+  const ana = await join("Ana");
+  const bia = await join("Bia");
+  assert.equal(bia.sent.at(-1).peers.find((peer) => peer.name === "Ana").deafened, false);
+  room.message(ana, JSON.stringify({ type: "state", deafened: true }));
+  assert.equal(bia.sent.at(-1).peers.find((peer) => peer.name === "Ana").deafened, true);
+  const before = bia.sent.length;
+  room.message(ana, JSON.stringify({ type: "state", deafened: true }));
+  room.message(ana, JSON.stringify({ type: "state", deafened: "yes" }));
+  assert.equal(bia.sent.length, before);
+});

@@ -14,6 +14,7 @@ export interface Peer {
   avatar: Avatar | null;
   host: boolean;
   client: string | null;
+  deafened?: boolean;
 }
 export interface Avatar {
   shape: string;

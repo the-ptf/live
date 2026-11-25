@@ -4,6 +4,7 @@ let context = null;
 let ticking = 0;
 let blocked = false;
 let report = () => {};
+let silenced = false;
 
 function container() {
   let element = document.getElementById("voices");
@@ -35,12 +36,18 @@ function play(audio) {
 export function playVoice(key, stream) {
   let audio = players.get(key);
   if (!audio) {
-    audio = Object.assign(document.createElement("audio"), { autoplay: true });
+    audio = Object.assign(document.createElement("audio"), { autoplay: true, muted: silenced });
     container().append(audio);
     players.set(key, audio);
   }
   if (audio.srcObject !== stream) audio.srcObject = stream;
   play(audio);
+}
+
+/** Deafened: every voice keeps arriving but none plays, so undeafening is instant. */
+export function setDeafened(on) {
+  silenced = on;
+  for (const audio of players.values()) audio.muted = on;
 }
 
 export function stopVoice(key) {

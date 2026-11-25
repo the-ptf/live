@@ -1,7 +1,7 @@
 import { hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
 import { cameraEncoding, SCREEN_BITRATE } from "./media.mjs";
-import { playVoice, stopAllVoices, stopVoice, unwatchLevel, watchLevel } from "./voice.js";
+import { playVoice, setDeafened, stopAllVoices, stopVoice, unwatchLevel, watchLevel } from "./voice.js";
 
 const $ = (id) => document.getElementById(id);
 const NAME_KEY = "milagre-live:name";
@@ -9,6 +9,8 @@ const ROOM_PATH = /^\/r\/([a-z]{4}-[a-z]{4}-[a-z]{4})$/;
 
 let myLook = loadLook();
 let effect = loadEffect();
+let deafened = false;
+let micBeforeDeafen = false;
 let roomId = ROOM_PATH.exec(location.pathname)?.[1] ?? null;
 let socket = null;
 let pinger = 0;
@@ -129,6 +131,29 @@ async function startSession(iceServers) {
   sessionId = answer.sessionId;
   await connection.setRemoteDescription(answer.sessionDescription);
   await waitConnected(connection);
+}
+
+function sendState() {
+  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "state", deafened }));
+}
+
+/** Like Discord: deafening also mutes you, and undeafening turns your mic back on if it was on. */
+async function toggleDeafen() {
+  deafened = !deafened;
+  setDeafened(deafened);
+  const button = $("deafen");
+  button.setAttribute("aria-pressed", String(deafened));
+  button.setAttribute("aria-label", deafened ? "Undeafen" : "Deafen");
+  button.title = deafened ? "Undeafen" : "Deafen";
+  sendState();
+  render();
+  if (deafened) {
+    micBeforeDeafen = local.has("mic");
+    if (micBeforeDeafen) stopLocal("mic");
+  } else if (micBeforeDeafen && !local.has("mic")) {
+    micBeforeDeafen = false;
+    await toggle("mic");
+  }
 }
 
 function sendLook() {
@@ -291,7 +316,10 @@ function paintSpeaking(speaking) {
   for (const tile of tiles.values()) tile.classList.toggle("speaking", Boolean(tile.dataset.voice) && speaking.has(tile.dataset.voice));
 }
 
-function tileFor(key, { label, stream, kind, mine = false, look, working = false, removable = null, voice = null, mic = null }) {
+const DEAFENED =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 14h-1.343"/><path d="M9.128 3.47A9 9 0 0 1 21 12v3.343"/><path d="m2 2 20 20"/><path d="M20.414 20.414A2 2 0 0 1 19 21h-1a2 2 0 0 1-2-2v-3"/><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.6-6.4"/></svg>';
+
+function tileFor(key, { label, stream, kind, mine = false, look, working = false, removable = null, voice = null, mic = null, deaf = false }) {
   const tile = tiles.get(key) ?? makeTile(key);
   const remove = tile.querySelector(".remove");
   remove.hidden = !removable;
@@ -314,6 +342,11 @@ function tileFor(key, { label, stream, kind, mine = false, look, working = false
   if (mic !== null) {
     const icon = Object.assign(document.createElement("span"), { className: `mic-state${mic ? "" : " off"}`, innerHTML: mic ? MIC_ON : MIC_OFF });
     icon.setAttribute("aria-label", mic ? "Microphone on" : "Microphone off");
+    caption.prepend(icon);
+  }
+  if (deaf) {
+    const icon = Object.assign(document.createElement("span"), { className: "mic-state off", innerHTML: DEAFENED });
+    icon.setAttribute("aria-label", "Deafened");
     caption.prepend(icon);
   }
   return tile;
@@ -383,6 +416,7 @@ function render() {
       working: local.has("screen"),
       voice: "me",
       mic: local.has("mic"),
+      deaf: deafened,
     }),
   );
   for (const peer of others) {
@@ -397,6 +431,7 @@ function render() {
         removable: hosting && !peer.host ? peer : null,
         voice: `peer:${peer.id}`,
         mic: peer.tracks.some((track) => track.source === "mic"),
+        deaf: Boolean(peer.deafened),
       }),
     );
   }
@@ -447,6 +482,7 @@ function connect(name) {
     if (message.type === "welcome") {
       me = { id: message.id, token: message.token };
       sendLook();
+      if (deafened) sendState();
       serial(async () => {
         await startSession(message.iceServers);
         retry = 0;
@@ -625,6 +661,10 @@ function capture(source) {
 
 async function toggle(source) {
   if (local.has(source)) return stopLocal(source);
+  if (source === "mic" && deafened) {
+    micBeforeDeafen = false;
+    toggleDeafen();
+  }
   let stream;
   try {
     stream = await capture(source);
@@ -680,6 +720,7 @@ setUpEffects();
 showBot($("join-avatar"), myLook);
 $("camera").addEventListener("click", () => toggle("camera"));
 $("mic").addEventListener("click", () => toggle("mic"));
+$("deafen").addEventListener("click", () => toggleDeafen());
 $("screen").addEventListener("click", () => toggle("screen"));
 $("leave").addEventListener("click", () => backToJoin(null));
 $("copy").addEventListener("click", () => {

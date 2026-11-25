@@ -1,27 +1,26 @@
 {
-  "name": "milagre-live",
+  "name": "milagre-live-monorepo",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "type": "module",
   "scripts": {
-    "build": "node build.mjs",
-    "test": "node --test src/*.test.mjs",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint src build.mjs e2e",
-    "format": "oxfmt src build.mjs e2e README.md",
-    "dev": "npx wrangler@4.147.0 dev --local-upstream localhost:8799 --port 8799 --var ALLOW_LOCALHOST:true --env-file $HOME/.private_keys/live.env",
-    "deploy": "npx wrangler@4.147.0 deploy",
-    "e2e": "node e2e/two-peers.cjs && node e2e/custom.cjs && node e2e/kick.cjs"
-  },
-  "dependencies": {
-    "open-bot-avatar": "0.5.1"
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "oxlint apps packages",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "dev": "npm run dev --workspace @milagre-live/web",
+    "deploy": "npm run deploy --workspace @milagre-live/web",
+    "e2e": "npm run e2e --workspace @milagre-live/web"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261004.1",
-    "esbuild": "0.28.2",
     "oxfmt": "0.72.0",
     "oxlint": "1.87.0",
-    "puppeteer-core": "24.43.1",
     "typescript": "6.0.3"
   },
   "engines": {

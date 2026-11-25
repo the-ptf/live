@@ -1,0 +1,22 @@
+{
+  "name": "@milagre-live/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test src/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "dev": "npx wrangler@4.147.0 dev --local-upstream localhost:8799 --port 8799 --var ALLOW_LOCALHOST:true --env-file $HOME/.private_keys/live.env",
+    "deploy": "npx wrangler@4.147.0 deploy",
+    "e2e": "node e2e/two-peers.cjs && node e2e/custom.cjs && node e2e/kick.cjs && node e2e/voice.cjs"
+  },
+  "dependencies": {
+    "open-bot-avatar": "0.5.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261004.1",
+    "esbuild": "0.28.2",
+    "puppeteer-core": "24.43.1"
+  }
+}

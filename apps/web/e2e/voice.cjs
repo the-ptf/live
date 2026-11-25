@@ -80,6 +80,28 @@ const cameraEncoding = (p) =>
   await ana.click("#mic");
   await bia.waitForFunction(() => document.querySelectorAll("#voices audio").length === 0, { timeout: 15000 });
   console.log("ok: muting removes Ana's voice at Bia");
+  await ana.click("#mic");
+  await bia.click("#mic");
+  await bia.waitForFunction(() => document.querySelectorAll("#voices audio").length === 1, { timeout: 15000 });
+  await bia.click("#deafen");
+  await ana.waitForFunction(() => document.querySelector('#gallery figure:not(.mine) .mic-state[aria-label="Deafened"]'), { timeout: 15000 });
+  console.log(
+    "Bia deafened:",
+    await bia.evaluate(() => ({
+      voicesMuted: [...document.querySelectorAll("#voices audio")].every((audio) => audio.muted),
+      mic: document.getElementById("mic").getAttribute("aria-pressed"),
+    })),
+  );
+  await bia.click("#deafen");
+  await bia.waitForFunction(() => document.getElementById("mic").getAttribute("aria-pressed") === "true", { timeout: 15000 });
+  await ana.waitForFunction(() => !document.querySelector('#gallery figure:not(.mine) .mic-state[aria-label="Deafened"]'), { timeout: 15000 });
+  console.log(
+    "Bia undeafened:",
+    await bia.evaluate(() => ({
+      voicesMuted: [...document.querySelectorAll("#voices audio")].some((audio) => audio.muted),
+      mic: document.getElementById("mic").getAttribute("aria-pressed"),
+    })),
+  );
   const others = [];
   for (const name of ["Cris", "Davi", "Eva", "Fábio"]) others.push(await join(name, ana.url()));
   await ana.waitForFunction(() => document.getElementById("people").textContent === "6 people here", { timeout: 20000 });
