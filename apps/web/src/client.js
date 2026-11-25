@@ -295,15 +295,39 @@ function drop(name, entry) {
 const GAP = 12;
 const RATIO = 16 / 9;
 
+/**
+ * Fullscreen shows the whole tile, so the page keeps drawing the video and the browser's own player never takes over.
+ * iPhones only let a <video> go fullscreen, through their player.
+ */
+function toggleFullscreen(tile, video) {
+  const current = document.fullscreenElement ?? document.webkitFullscreenElement;
+  if (current) return void (document.exitFullscreen ?? document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
+  if (tile.requestFullscreen) return void tile.requestFullscreen().catch(() => {});
+  if (tile.webkitRequestFullscreen) return void tile.webkitRequestFullscreen();
+  video.webkitEnterFullscreen?.();
+}
+
+/**
+ * Puts `nodes` in `container` in order, moving only what is out of place: a tile that leaves the page, even for a moment,
+ * drops out of fullscreen.
+ */
+function placeChildren(container, nodes) {
+  const keep = new Set(nodes);
+  for (const child of Array.from(container.children)) if (!keep.has(child)) child.remove();
+  nodes.forEach((node, index) => {
+    if (container.children[index] !== node) container.insertBefore(node, container.children[index] ?? null);
+  });
+}
+
 function makeTile(key) {
   const tile = document.createElement("figure");
   tile.className = "tile";
   const video = Object.assign(document.createElement("video"), { autoplay: true, muted: true, playsInline: true });
-  video.addEventListener("click", () => {
-    if (document.fullscreenElement) return void document.exitFullscreen();
-    if (video.requestFullscreen) video.requestFullscreen().catch(() => {});
-    else video.webkitEnterFullscreen?.();
-  });
+  video.addEventListener("click", () => toggleFullscreen(tile, video));
+  // A live picture is never meant to stop: Safari and iPhones pause it on leaving their video player, and nothing else
+  // would start it again, so the picture froze on its last frame.
+  video.addEventListener("pause", () => video.srcObject && video.play().catch(() => {}));
+  video.addEventListener("webkitendfullscreen", () => video.play().catch(() => {}));
   const avatar = Object.assign(document.createElement("div"), { className: "avatar" });
   const remove = Object.assign(document.createElement("button"), { type: "button", className: "remove", hidden: true });
   tile.append(avatar, video, document.createElement("figcaption"), remove);
@@ -459,8 +483,8 @@ function render() {
       tile.remove();
       tiles.delete(key);
     }
-  $("screens").replaceChildren(...screens);
-  $("gallery").replaceChildren(...people);
+  placeChildren($("screens"), screens);
+  placeChildren($("gallery"), people);
   layout();
 }
 

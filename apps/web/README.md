@@ -95,6 +95,8 @@ npm run deploy       # needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in t
 - `custom.cjs`: a fluffy avatar choice reaching the other person, and camera effects on and off.
 - `kick.cjs`: the host removes someone, who can't rejoin from that browser; the host comes back as host.
 - `dash.cjs`: the stats login and the numbers for a live room.
+- `fullscreen.cjs`: a tile going fullscreen and back keeps drawing frames, stays fullscreen when someone joins, and a
+  paused live video starts again.
 - `screen-audio.cjs`: a shared tab's sound reaching and playing at the other person, and stopping with the share.
 - `voice.cjs`: a voice reaching the other person, the speaking ring, mute, deafen, and the camera rate at six people.
 - `gallery.cjs`, `menus.cjs`: screenshots of a six-person room, a shared screen, a phone and the dock menus.

@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "npx wrangler@4.147.0 dev --local-upstream localhost:8799 --port 8799 --var ALLOW_LOCALHOST:true --env-file $HOME/.private_keys/live.env",
     "deploy": "npx wrangler@4.147.0 deploy",
-    "e2e": "node e2e/two-peers.cjs && node e2e/custom.cjs && node e2e/kick.cjs && node e2e/voice.cjs && node e2e/screen-audio.cjs"
+    "e2e": "node e2e/two-peers.cjs && node e2e/custom.cjs && node e2e/kick.cjs && node e2e/voice.cjs && node e2e/screen-audio.cjs && node e2e/fullscreen.cjs"
   },
   "dependencies": {
     "open-bot-avatar": "0.5.1"

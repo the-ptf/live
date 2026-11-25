@@ -417,6 +417,17 @@
         background: var(--media);
         cursor: zoom-in;
       }
+      .tile:fullscreen,
+      .tile:-webkit-full-screen {
+        border-radius: 0;
+        box-shadow: none;
+        background: var(--media);
+      }
+      figure.tile:fullscreen video,
+      figure.tile:-webkit-full-screen video {
+        object-fit: contain;
+        cursor: zoom-out;
+      }
       .tile.camera video {
         object-fit: cover;
       }
