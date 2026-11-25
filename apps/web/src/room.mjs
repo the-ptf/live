@@ -1,11 +1,11 @@
 export const MAX_PEERS = 16;
 const MAX_NAME = 40;
-const MAX_TRACKS = 4;
+const MAX_TRACKS = 6;
 export const ROOM_ID = /^[a-z]{4}-[a-z]{4}-[a-z]{4}$/;
-const TRACK_NAME = /^[a-z0-9]{8}-(screen|camera|mic)-[0-9]{1,6}$/;
+const TRACK_NAME = /^[a-z0-9]{8}-(screen|camera|mic|screen-audio)-[0-9]{1,6}$/;
 const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const MID = /^[A-Za-z0-9_-]{1,32}$/;
-const SOURCES = new Set(["screen", "camera", "mic"]);
+const SOURCES = new Set(["screen", "camera", "mic", "screen-audio"]);
 const MATERIALS = new Set(["flat", "fluffy"]);
 const SHAPE = /^[a-z0-9-]{1,40}$/;
 const COLOR = /^#[0-9a-f]{6}$/i;
@@ -88,6 +88,7 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
         camera: peer.tracks.some((track) => track.source === "camera"),
         screen: peer.tracks.some((track) => track.source === "screen"),
         mic: peer.tracks.some((track) => track.source === "mic"),
+        screenAudio: peer.tracks.some((track) => track.source === "screen-audio"),
       })),
     );
   };

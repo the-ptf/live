@@ -20,6 +20,9 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   unpublishes it, so a muted mic sends nothing. Every voice in the room plays through a hidden `<audio>`; a browser that
   blocks sound before a click shows a notice and starts them on the next click. One `AudioContext` measures each voice
   ten times a second for the green speaking ring, without routing it to the speakers.
+- A screen share carries its sound as a separate `screen-audio` track (128 kbps): the shared tab's sound, or the whole
+  computer's where the browser offers it. Chrome and Edge ask with a "Share audio" switch in the picker; Safari and
+  Firefox share no sound. Viewers play it like a voice, and deafen silences it too.
 - Deafen works like Discord's: every voice keeps arriving but none plays, your mic goes off, and undeafening turns it
   back on if it was on. The room shares each person's deafened state so their tile shows it.
 - Camera bitrate (`src/media.mjs`): 0.9 Mbps at full resolution, 0.3 Mbps at half resolution once the room has six
@@ -92,6 +95,7 @@ npm run deploy       # needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in t
 - `custom.cjs`: a fluffy avatar choice reaching the other person, and camera effects on and off.
 - `kick.cjs`: the host removes someone, who can't rejoin from that browser; the host comes back as host.
 - `dash.cjs`: the stats login and the numbers for a live room.
+- `screen-audio.cjs`: a shared tab's sound reaching and playing at the other person, and stopping with the share.
 - `voice.cjs`: a voice reaching the other person, the speaking ring, mute, deafen, and the camera rate at six people.
 - `gallery.cjs`, `menus.cjs`: screenshots of a six-person room, a shared screen, a phone and the dock menus.
 

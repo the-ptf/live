@@ -4,7 +4,7 @@ export const FALLBACK_ICE: IceServer[];
 export function randomId(length: number, alphabet?: string, random?: (n: number) => Uint8Array): string;
 export function cleanName(raw: unknown): string;
 
-export type Source = "screen" | "camera" | "mic";
+export type Source = "screen" | "camera" | "mic" | "screen-audio";
 export interface Peer {
   id: string;
   name: string;

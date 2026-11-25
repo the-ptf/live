@@ -247,8 +247,8 @@ test("every roster change is reported with who has a camera or a screen", async 
   room.message(ana, JSON.stringify({ type: "publish", tracks: [{ name: `${ana.peer.id}-screen-1`, source: "screen" }] }));
   room.leave(ana);
   assert.deepEqual(reports, [
-    { event: "join", peers: [{ name: "Ana", host: true, camera: false, screen: false, mic: false }] },
-    { event: "change", peers: [{ name: "Ana", host: true, camera: false, screen: true, mic: false }] },
+    { event: "join", peers: [{ name: "Ana", host: true, camera: false, screen: false, mic: false, screenAudio: false }] },
+    { event: "change", peers: [{ name: "Ana", host: true, camera: false, screen: true, mic: false, screenAudio: false }] },
     { event: "change", peers: [] },
   ]);
 });
@@ -264,4 +264,28 @@ test("a peer's deafened state reaches everyone, and repeats or junk change nothi
   room.message(ana, JSON.stringify({ type: "state", deafened: true }));
   room.message(ana, JSON.stringify({ type: "state", deafened: "yes" }));
   assert.equal(bia.sent.length, before);
+});
+
+test("a screen share's sound is its own track, published next to the screen", async () => {
+  const { room, join } = harness();
+  const ana = await join("Ana");
+  const bia = await join("Bia");
+  const id = ana.peer.id;
+  room.message(
+    ana,
+    JSON.stringify({
+      type: "publish",
+      tracks: [
+        { name: `${id}-screen-1`, source: "screen" },
+        { name: `${id}-screen-audio-2`, source: "screen-audio" },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    bia.sent
+      .at(-1)
+      .peers.find((peer) => peer.name === "Ana")
+      .tracks.map((track) => track.source),
+    ["screen", "screen-audio"],
+  );
 });

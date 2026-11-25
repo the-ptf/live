@@ -1,6 +1,6 @@
 import { hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
-import { cameraEncoding, SCREEN_BITRATE } from "./media.mjs";
+import { cameraEncoding, SCREEN_AUDIO_BITRATE, SCREEN_BITRATE } from "./media.mjs";
 import { playVoice, setDeafened, stopAllVoices, stopVoice, unwatchLevel, watchLevel } from "./voice.js";
 
 const $ = (id) => document.getElementById(id);
@@ -178,7 +178,11 @@ function push(source) {
   return serial(async () => {
     const entry = local.get(source);
     if (!entry || entry.name || !pc || !sessionId) return;
-    const encodings = { camera: [cameraEncoding(peers.length)], screen: [{ maxBitrate: SCREEN_BITRATE }] }[source];
+    const encodings = {
+      camera: [cameraEncoding(peers.length)],
+      screen: [{ maxBitrate: SCREEN_BITRATE }],
+      "screen-audio": [{ maxBitrate: SCREEN_AUDIO_BITRATE }],
+    }[source];
     const transceiver = pc.addTransceiver(entry.track, { direction: "sendonly", ...(encodings ? { sendEncodings: encodings } : {}) });
     await pc.setLocalDescription(await pc.createOffer());
     const name = `${me.id}-${source}-${++seq}`;
@@ -225,6 +229,7 @@ function stopLocal(source) {
   entry.raw?.stop();
   entry.pipeline?.stop();
   if (source === "mic") unwatchLevel("me");
+  if (source === "screen") stopLocal("screen-audio");
   paintToggle(source, false);
   announce();
   render();
@@ -271,6 +276,7 @@ function pull(name, peer, track) {
       playVoice(name, entry.stream);
       watchLevel(`peer:${entry.peerId}`, entry.stream, paintSpeaking);
     }
+    if (entry.source === "screen-audio") playVoice(name, entry.stream);
     render();
   });
 }
@@ -281,6 +287,7 @@ function drop(name, entry) {
     stopVoice(name);
     unwatchLevel(`peer:${entry.peerId}`);
   }
+  if (entry.source === "screen-audio") stopVoice(name);
   render();
   if (entry.transceiver) serial(() => closeMid(entry.transceiver));
 }
@@ -435,11 +442,15 @@ function render() {
       }),
     );
   }
-  if (local.has("screen")) screens.push(tileFor("screen:me", { label: "Your screen", stream: localStream("screen"), kind: "screen" }));
+  if (local.has("screen"))
+    screens.push(
+      tileFor("screen:me", { label: local.has("screen-audio") ? "Your screen, with sound" : "Your screen", stream: localStream("screen"), kind: "screen" }),
+    );
   for (const [name, entry] of remote) {
     if (!entry.ready || entry.source !== "screen") continue;
     const owner = peers.find((peer) => peer.id === entry.peerId)?.name ?? "Someone";
-    screens.push(tileFor(`screen:${name}`, { label: `${owner}'s screen`, stream: entry.stream, kind: "screen" }));
+    const sound = peers.find((peer) => peer.id === entry.peerId)?.tracks.some((track) => track.source === "screen-audio");
+    screens.push(tileFor(`screen:${name}`, { label: sound ? `${owner}'s screen, with sound` : `${owner}'s screen`, stream: entry.stream, kind: "screen" }));
   }
   const keep = new Set([...people, ...screens]);
   for (const [key, tile] of tiles)
@@ -604,6 +615,7 @@ const DEVICES = {
 const deviceId = (source) => localStorage.getItem(DEVICES[source].key);
 
 function paintToggle(source, on) {
+  if (!TOGGLE_LABELS[source]) return;
   const button = $(source);
   button.setAttribute("aria-pressed", String(on));
   const label = TOGGLE_LABELS[source][on ? 1 : 0];
@@ -650,13 +662,31 @@ async function chooseDevice(source, id) {
   await toggle(source);
 }
 
+/**
+ * A screen share takes the shared tab's sound, or the whole computer's where the browser offers it (Chrome and Edge ask
+ * with a "Share audio" switch). A browser that refuses audio for screen capture gets asked again for video alone.
+ */
+async function captureScreen() {
+  const video = { frameRate: { ideal: 15, max: 30 } };
+  try {
+    return await navigator.mediaDevices.getDisplayMedia({
+      video,
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      systemAudio: "include",
+    });
+  } catch (error) {
+    if (error?.name !== "TypeError" && error?.name !== "NotSupportedError") throw error;
+    return navigator.mediaDevices.getDisplayMedia({ video, audio: false });
+  }
+}
+
 function capture(source) {
   const saved = DEVICES[source] && deviceId(source);
   const chosen = saved ? { deviceId: { ideal: saved } } : {};
   if (source === "camera") return navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, ...chosen }, audio: false });
   if (source === "mic")
     return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, ...chosen }, video: false });
-  return navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
+  return captureScreen();
 }
 
 async function toggle(source) {
@@ -680,6 +710,12 @@ async function toggle(source) {
   track.addEventListener("ended", () => (local.get(source)?.raw ?? local.get(source)?.track) === track && stopLocal(source));
   const pipeline = source === "camera" && effect !== "none" ? createEffectCamera(track, effect) : null;
   local.set(source, { track: pipeline?.track ?? track, raw: source === "camera" ? track : null, pipeline, transceiver: null, name: null });
+  const [sound] = source === "screen" ? stream.getAudioTracks() : [];
+  if (sound) {
+    sound.addEventListener("ended", () => local.get("screen-audio")?.track === sound && stopLocal("screen-audio"));
+    local.set("screen-audio", { track: sound, raw: null, pipeline: null, transceiver: null, name: null });
+    push("screen-audio");
+  }
   if (source === "mic") watchLevel("me", stream, paintSpeaking);
   paintToggle(source, true);
   render();

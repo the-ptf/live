@@ -1,4 +1,4 @@
-import { cameraEncoding, MIC_BITRATE, SCREEN_BITRATE } from "./media.mjs";
+import { cameraEncoding, MIC_BITRATE, SCREEN_AUDIO_BITRATE, SCREEN_BITRATE } from "./media.mjs";
 
 const gbPerHour = (bitsPerSecond) => (bitsPerSecond * 3600) / 8 / 1e9;
 const STALE_MS = 12 * 60 * 60 * 1000;
@@ -18,7 +18,14 @@ function totalsOf(rooms) {
     const others = room.peers.length - 1;
     const count = (source) => room.peers.filter((peer) => peer[source]).length;
     const camera = gbPerHour(cameraEncoding(room.peers.length).maxBitrate);
-    return total + others * (count("camera") * camera + count("screen") * gbPerHour(SCREEN_BITRATE) + count("mic") * gbPerHour(MIC_BITRATE));
+    return (
+      total +
+      others *
+        (count("camera") * camera +
+          count("screen") * gbPerHour(SCREEN_BITRATE) +
+          count("mic") * gbPerHour(MIC_BITRATE) +
+          count("screenAudio") * gbPerHour(SCREEN_AUDIO_BITRATE))
+    );
   }, 0);
   return {
     rooms: rooms.length,
