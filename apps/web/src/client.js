@@ -45,12 +45,12 @@ function newRoomId() {
   return [chars.slice(0, 4), chars.slice(4, 8), chars.slice(8)].map((part) => part.join("")).join("-");
 }
 
-function toast(text) {
+function toast(text, duration = 2400) {
   const element = $("toast");
   element.textContent = text;
   element.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (element.hidden = true), 2400);
+  toast.timer = setTimeout(() => (element.hidden = true), duration);
 }
 
 let connectionStatus = "";
@@ -735,16 +735,35 @@ async function chooseDevice(source, id) {
  */
 async function captureScreen() {
   const video = { frameRate: { ideal: 15, max: 30 } };
+  let stream;
   try {
-    return await navigator.mediaDevices.getDisplayMedia({
+    stream = await navigator.mediaDevices.getDisplayMedia({
       video,
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
       systemAudio: "include",
+      selfBrowserSurface: "exclude",
     });
   } catch (error) {
     if (error?.name !== "TypeError" && error?.name !== "NotSupportedError") throw error;
     return navigator.mediaDevices.getDisplayMedia({ video, audio: false });
   }
+  keepCallOutOfSound(stream);
+  return stream;
+}
+
+/**
+ * A whole screen's or window's sound includes the call playing on this computer, so everyone would hear themselves back.
+ * Chrome leaves this page's own sound out when asked (`restrictOwnAudio`); where the browser didn't, the share goes
+ * without sound. A tab's sound never has the call in it: the picker hides this tab.
+ */
+function keepCallOutOfSound(stream) {
+  const [sound] = stream.getAudioTracks();
+  if (!sound) return;
+  const surface = stream.getVideoTracks()[0]?.getSettings().displaySurface;
+  if (surface === "browser" || sound.getSettings().restrictOwnAudio === true) return;
+  stream.removeTrack(sound);
+  sound.stop();
+  toast("Sharing without sound: this browser would send the call back to everyone. Share a tab to include its sound.", 6000);
 }
 
 function capture(source) {

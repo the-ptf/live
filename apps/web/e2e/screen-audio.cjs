@@ -64,6 +64,7 @@ const ready = (p) =>
     },
   );
   console.log("ok: Bia plays the shared tab's sound");
+  await bia.waitForSelector("#screens figcaption", { timeout: 15000 });
   console.log("Bia's tile:", await bia.$eval("#screens figcaption", (e) => e.textContent));
   await ana.evaluate(() => document.getElementById("screen").click());
   await bia.waitForFunction(() => document.querySelectorAll("#voices audio").length === 0, { timeout: 15000 });

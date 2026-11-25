@@ -22,7 +22,10 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   ten times a second for the green speaking ring, without routing it to the speakers.
 - A screen share carries its sound as a separate `screen-audio` track (128 kbps): the shared tab's sound, or the whole
   computer's where the browser offers it. Chrome and Edge ask with a "Share audio" switch in the picker; Safari and
-  Firefox share no sound. Viewers play it like a voice, and deafen silences it too.
+  Firefox share no sound. Viewers play it like a voice, and deafen silences it too. A whole screen's sound would carry
+  the call playing on the sharer's computer back to everyone, so the page asks Chrome to leave its own sound out
+  (`restrictOwnAudio`), hides the Live tab from the picker, and drops the sound where the browser can't leave the call
+  out.
 - Volume is each listener's own: hovering a person's tile shows a slider for their voice, and a shared screen with
   sound gets one for the stream, from 0 to 100%. Levels are kept in the browser by the person's name (`voice:<name>`,
   `stream:<name>`), so they survive rejoining. Going past 100% would mean playing voices through Web Audio, which can
