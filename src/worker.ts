@@ -1,0 +1,250 @@
+import page from "./page.html";
+import script from "../dist/app.txt";
+import { createRoom, FALLBACK_ICE, ROOM_ID, type Answer, type IceServer, type Peer, type Room } from "./room.mjs";
+import { createStats, type Report } from "./stats.mjs";
+import { passwordMatches, renderDash, renderLogin, sessionCookie, signedIn, signOutCookie } from "./dash.mjs";
+
+interface Env {
+  ROOMS: DurableObjectNamespace;
+  STATS: DurableObjectNamespace;
+  DASH_PASSWORD?: string;
+  PUBLIC_ORIGIN: string;
+  ALLOW_LOCALHOST?: string;
+  REALTIME_APP_ID?: string;
+  REALTIME_APP_TOKEN?: string;
+  TURN_KEY_ID?: string;
+  TURN_KEY_TOKEN?: string;
+}
+
+const REALTIME = "https://rtc.live.cloudflare.com/v1";
+const INTERNAL = "https://room.internal";
+const API = /^\/api\/rooms\/([a-z]{4}-[a-z]{4}-[a-z]{4})\/(ws|ice|sfu\/.+)$/;
+
+const SECURITY_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+  "permissions-policy": "camera=(self), display-capture=(self), microphone=()",
+};
+const CSP =
+  "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+const DASH_CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
+const STATS_URL = "https://stats.internal";
+const statsOf = (env: Env) => env.STATS.get(env.STATS.idFromName("all"));
+
+const html = (body: string, status = 200, extra: Record<string, string> = {}) =>
+  new Response(body, {
+    status,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": DASH_CSP, ...SECURITY_HEADERS, ...extra },
+  });
+
+/** `/dash`: the owner's stats, behind the `DASH_PASSWORD` secret. */
+async function dash(request: Request, env: Env, pathname: string): Promise<Response> {
+  const password = env.DASH_PASSWORD;
+  if (!password) return html("<p>Set the DASH_PASSWORD secret to open the stats.</p>", 503);
+  const now = Date.now();
+  if (request.method === "POST" && pathname === "/dash/login") {
+    const form = await request.formData().catch(() => null);
+    if (!(await passwordMatches(form?.get("password"), password))) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      return html(renderLogin("Wrong password."), 401);
+    }
+    return new Response(null, { status: 303, headers: { location: "/dash", "set-cookie": await sessionCookie(password, now) } });
+  }
+  if (request.method === "POST" && pathname === "/dash/logout")
+    return new Response(null, { status: 303, headers: { location: "/dash", "set-cookie": signOutCookie() } });
+  if (request.method !== "GET" || pathname !== "/dash") return new Response(null, { status: 303, headers: { location: "/dash" } });
+  if (!(await signedIn(request.headers.get("Cookie"), password, now))) return html(renderLogin());
+  const snapshot = await (await statsOf(env).fetch(`${STATS_URL}/snapshot`)).json();
+  return html(renderDash(snapshot as Parameters<typeof renderDash>[0], now));
+}
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...SECURITY_HEADERS } });
+
+function allowedOrigin(request: Request, env: Env): boolean {
+  const origin = request.headers.get("Origin");
+  if (!origin) return false;
+  if (origin === env.PUBLIC_ORIGIN) return true;
+  if (env.ALLOW_LOCALHOST !== "true") return false;
+  try {
+    return ["localhost", "127.0.0.1"].includes(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const { pathname } = url;
+    if (pathname === "/health") return new Response("ok");
+    const roomPage = pathname.startsWith("/r/") && ROOM_ID.test(pathname.slice(3));
+    if (request.method === "GET" && (pathname === "/" || roomPage))
+      return new Response(page, {
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", "content-security-policy": CSP, ...SECURITY_HEADERS },
+      });
+    if (request.method === "GET" && pathname === "/app.js")
+      return new Response(script, { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache", ...SECURITY_HEADERS } });
+    if (pathname === "/dash" || pathname.startsWith("/dash/")) return dash(request, env, pathname);
+    if (pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "content-type": "text/plain" } });
+    const match = API.exec(pathname);
+    if (!match) return new Response("Not found", { status: 404 });
+    if (!allowedOrigin(request, env)) return json({ error: "bad-origin" }, 403);
+    if (match[2] === "ws" && request.headers.get("Upgrade") !== "websocket") return json({ error: "expected-websocket" }, 426);
+    const room = env.ROOMS.get(env.ROOMS.idFromName(match[1]!));
+    const inner = new URL(`${INTERNAL}/${match[2]}`);
+    inner.search = url.search;
+    const forwarded = new Request(inner, request);
+    forwarded.headers.set("x-live-room", match[1]!);
+    return room.fetch(forwarded);
+  },
+};
+
+type Attachment = Peer | null;
+
+/**
+ * One room on the WebSocket Hibernation API. Each socket's attachment is its peer, so an idle room costs no duration
+ * and a fresh object rebuilds the room from `getWebSockets()`. Keepalive pings are answered without waking it.
+ */
+export class LiveRoom implements DurableObject {
+  private readonly room: Room<WebSocket>;
+  constructor(
+    private readonly state: DurableObjectState,
+    private readonly env: Env,
+  ) {
+    state.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+    this.room = createRoom<WebSocket>({
+      io: {
+        list: () => this.state.getWebSockets().map((socket) => ({ socket, peer: (socket.deserializeAttachment() as Attachment) ?? null })),
+        save: (socket, peer) => socket.serializeAttachment(peer),
+        send: (socket, text) => {
+          try {
+            socket.send(text);
+          } catch {
+            /* closing */
+          }
+        },
+        close: (socket, code, reason) => {
+          try {
+            socket.close(code, reason);
+          } catch {
+            /* already closed */
+          }
+        },
+      },
+      store: {
+        get: (key) => this.state.storage.kv.get<string>(key),
+        put: (key, value) => this.state.storage.kv.put(key, value),
+      },
+      realtime: (method, path, body) => this.realtime(method, path, body),
+      iceServers: () => this.iceServers(),
+      onChange: (event, peers) => {
+        const id = this.state.storage.kv.get<string>("id");
+        if (!id) return;
+        const report: Report = { id, event, peers };
+        this.state.waitUntil(
+          statsOf(this.env)
+            .fetch(`${STATS_URL}/report`, { method: "POST", body: JSON.stringify(report) })
+            .catch(() => {}),
+        );
+      },
+    });
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const token = /^Bearer (.+)$/.exec(request.headers.get("Authorization") ?? "")?.[1] ?? null;
+    if (url.pathname === "/ws") {
+      const roomId = request.headers.get("x-live-room");
+      if (roomId && this.state.storage.kv.get("id") !== roomId) this.state.storage.kv.put("id", roomId);
+      const name = url.searchParams.get("name") ?? "";
+      const [client, server] = Object.values(new WebSocketPair());
+      if (!client || !server) throw new Error("WebSocketPair did not yield two sockets");
+      const clientId = url.searchParams.get("client");
+      const refusal = this.room.refusal(name, clientId);
+      if (refusal) {
+        server.accept();
+        server.close({ 409: 4409, 403: 4403 }[refusal.status] ?? 4400, refusal.error);
+        return new Response(null, { status: 101, webSocket: client });
+      }
+      this.state.acceptWebSocket(server);
+      this.state.waitUntil(this.room.join(server, name, { client: clientId, ownerKey: url.searchParams.get("owner") }));
+      return new Response(null, { status: 101, webSocket: client });
+    }
+    if (url.pathname === "/ice") return reply(await this.room.ice(token));
+    const path = url.pathname.slice("/sfu/".length);
+    const body = request.method === "GET" ? null : await request.text();
+    return reply(await this.room.sfu({ token, method: request.method, path, body }));
+  }
+
+  webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
+    this.room.message(socket, message);
+  }
+
+  webSocketClose(socket: WebSocket): void {
+    this.room.leave(socket);
+  }
+
+  webSocketError(socket: WebSocket): void {
+    this.room.leave(socket);
+  }
+
+  private async realtime(method: string, path: string, body: unknown): Promise<Answer> {
+    if (!this.env.REALTIME_APP_ID || !this.env.REALTIME_APP_TOKEN) return { status: 503, body: { error: "realtime-not-configured" } };
+    const response = await fetch(`${REALTIME}/apps/${this.env.REALTIME_APP_ID}/${path}`, {
+      method,
+      headers: { authorization: `Bearer ${this.env.REALTIME_APP_TOKEN}`, "content-type": "application/json" },
+      body: body === undefined || body === null ? undefined : JSON.stringify(body),
+    });
+    const text = await response.text();
+    try {
+      return { status: response.status, body: JSON.parse(text) };
+    } catch {
+      return { status: 502, body: { error: "realtime-bad-answer" } };
+    }
+  }
+
+  // Browsers refuse TURN on port 53, so those URLs only slow ICE down.
+  private async iceServers(): Promise<IceServer[]> {
+    if (!this.env.TURN_KEY_ID || !this.env.TURN_KEY_TOKEN) return FALLBACK_ICE;
+    const response = await fetch(`${REALTIME}/turn/keys/${this.env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${this.env.TURN_KEY_TOKEN}`, "content-type": "application/json" },
+      body: JSON.stringify({ ttl: 86_400 }),
+    });
+    if (!response.ok) return FALLBACK_ICE;
+    const { iceServers } = (await response.json()) as { iceServers: IceServer[] };
+    return iceServers.map((server) => ({ ...server, urls: [server.urls].flat().filter((entry) => !/:53(\?|$)/.test(entry)) }));
+  }
+}
+
+const reply = ({ status, body }: Answer) => json(body, status);
+
+/** Every room's last roster and the day's counts, for `/dash`. One object for the whole service. */
+export class LiveStats implements DurableObject {
+  private readonly stats;
+  constructor(state: DurableObjectState) {
+    const kv = state.storage.kv;
+    this.stats = createStats({
+      store: {
+        get: (key) => kv.get<string>(key),
+        put: (key, value) => kv.put(key, value),
+        delete: (key) => {
+          kv.delete(key);
+        },
+        list: (prefix) => kv.list<string>({ prefix }),
+      },
+    });
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/report" && request.method === "POST") {
+      this.stats.report((await request.json()) as Report);
+      return new Response(null, { status: 204 });
+    }
+    if (pathname === "/snapshot") return Response.json(this.stats.snapshot());
+    return new Response("Not found", { status: 404 });
+  }
+}

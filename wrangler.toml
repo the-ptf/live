@@ -1,0 +1,34 @@
+name = "milagre-live"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+workers_dev = false
+routes = [{ pattern = "live.milagre.cloud", custom_domain = true }]
+
+[build]
+command = "node build.mjs"
+watch_dir = "src"
+
+# REALTIME_APP_ID, REALTIME_APP_TOKEN, TURN_KEY_ID, TURN_KEY_TOKEN and DASH_PASSWORD are Worker secrets; see README.md.
+[vars]
+PUBLIC_ORIGIN = "https://live.milagre.cloud"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "LiveRoom"
+
+[[durable_objects.bindings]]
+name = "STATS"
+class_name = "LiveStats"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LiveRoom"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["LiveStats"]
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html", "**/*.txt"]
+fallthrough = false
