@@ -1,7 +1,7 @@
 import { hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
 import { cameraEncoding, SCREEN_AUDIO_BITRATE, SCREEN_BITRATE } from "./media.mjs";
-import { playVoice, setDeafened, stopAllVoices, stopVoice, unwatchLevel, watchLevel } from "./voice.js";
+import { playVoice, setDeafened, setVolume, stopAllVoices, stopVoice, unwatchLevel, volumeOf, watchLevel } from "./voice.js";
 
 const $ = (id) => document.getElementById(id);
 const NAME_KEY = "milagre-live:name";
@@ -273,10 +273,10 @@ function pull(name, peer, track) {
     Object.assign(entry, { transceiver, stream: new MediaStream([transceiver.receiver.track]), ready: true });
     if (remote.get(name) !== entry) return closeMid(transceiver);
     if (entry.source === "mic") {
-      playVoice(name, entry.stream);
+      playVoice(name, entry.stream, `voice:${peer.name}`);
       watchLevel(`peer:${entry.peerId}`, entry.stream, paintSpeaking);
     }
-    if (entry.source === "screen-audio") playVoice(name, entry.stream);
+    if (entry.source === "screen-audio") playVoice(name, entry.stream, `stream:${peer.name}`);
     render();
   });
 }
@@ -330,7 +330,14 @@ function makeTile(key) {
   video.addEventListener("webkitendfullscreen", () => video.play().catch(() => {}));
   const avatar = Object.assign(document.createElement("div"), { className: "avatar" });
   const remove = Object.assign(document.createElement("button"), { type: "button", className: "remove", hidden: true });
-  tile.append(avatar, video, document.createElement("figcaption"), remove);
+  const volume = Object.assign(document.createElement("label"), { className: "volume", hidden: true });
+  const slider = Object.assign(document.createElement("input"), { type: "range", min: "0", max: "100", step: "1" });
+  volume.append(Object.assign(document.createElement("span"), { className: "volume-icon" }), slider);
+  slider.addEventListener("input", () => {
+    setVolume(volume.dataset.group, Number(slider.value) / 100);
+    paintVolume(volume);
+  });
+  tile.append(avatar, video, document.createElement("figcaption"), remove, volume);
   tiles.set(key, tile);
   return tile;
 }
@@ -350,8 +357,36 @@ function paintSpeaking(speaking) {
 const DEAFENED =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 14h-1.343"/><path d="M9.128 3.47A9 9 0 0 1 21 12v3.343"/><path d="m2 2 20 20"/><path d="M20.414 20.414A2 2 0 0 1 19 21h-1a2 2 0 0 1-2-2v-3"/><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.6-6.4"/></svg>';
 
-function tileFor(key, { label, stream, kind, mine = false, look, working = false, removable = null, voice = null, mic = null, deaf = false }) {
+const SPEAKER =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>';
+const SPEAKER_OFF =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>';
+
+function paintVolume(volume) {
+  const slider = volume.querySelector("input");
+  const value = Number(slider.value);
+  volume.querySelector(".volume-icon").innerHTML = value === 0 ? SPEAKER_OFF : SPEAKER;
+  slider.style.setProperty("--fill", `${value}%`);
+  slider.setAttribute("aria-valuetext", `${value}%`);
+}
+
+/** A slider for whose sound this tile carries; `null` hides it. Leaves a slider alone while someone drags it. */
+function showVolume(tile, sound) {
+  const volume = tile.querySelector(".volume");
+  volume.hidden = !sound;
+  if (!sound) return;
+  const slider = volume.querySelector("input");
+  slider.setAttribute("aria-label", sound.label);
+  volume.title = sound.label;
+  if (volume.dataset.group === sound.group && document.activeElement === slider) return;
+  volume.dataset.group = sound.group;
+  slider.value = String(Math.round(volumeOf(sound.group) * 100));
+  paintVolume(volume);
+}
+
+function tileFor(key, { label, stream, kind, mine = false, look, working = false, removable = null, voice = null, mic = null, deaf = false, sound = null }) {
   const tile = tiles.get(key) ?? makeTile(key);
+  showVolume(tile, sound);
   const remove = tile.querySelector(".remove");
   remove.hidden = !removable;
   if (removable && remove.dataset.peer !== removable.id) {
@@ -463,6 +498,7 @@ function render() {
         voice: `peer:${peer.id}`,
         mic: peer.tracks.some((track) => track.source === "mic"),
         deaf: Boolean(peer.deafened),
+        sound: peer.tracks.some((track) => track.source === "mic") ? { group: `voice:${peer.name}`, label: `${peer.name}'s volume` } : null,
       }),
     );
   }
@@ -474,7 +510,14 @@ function render() {
     if (!entry.ready || entry.source !== "screen") continue;
     const owner = peers.find((peer) => peer.id === entry.peerId)?.name ?? "Someone";
     const sound = peers.find((peer) => peer.id === entry.peerId)?.tracks.some((track) => track.source === "screen-audio");
-    screens.push(tileFor(`screen:${name}`, { label: sound ? `${owner}'s screen, with sound` : `${owner}'s screen`, stream: entry.stream, kind: "screen" }));
+    screens.push(
+      tileFor(`screen:${name}`, {
+        label: sound ? `${owner}'s screen, with sound` : `${owner}'s screen`,
+        stream: entry.stream,
+        kind: "screen",
+        sound: sound ? { group: `stream:${owner}`, label: `${owner}'s screen volume` } : null,
+      }),
+    );
   }
   const keep = new Set([...people, ...screens]);
   for (const [key, tile] of tiles)

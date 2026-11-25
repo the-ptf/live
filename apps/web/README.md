@@ -23,6 +23,10 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
 - A screen share carries its sound as a separate `screen-audio` track (128 kbps): the shared tab's sound, or the whole
   computer's where the browser offers it. Chrome and Edge ask with a "Share audio" switch in the picker; Safari and
   Firefox share no sound. Viewers play it like a voice, and deafen silences it too.
+- Volume is each listener's own: hovering a person's tile shows a slider for their voice, and a shared screen with
+  sound gets one for the stream, from 0 to 100%. Levels are kept in the browser by the person's name (`voice:<name>`,
+  `stream:<name>`), so they survive rejoining. Going past 100% would mean playing voices through Web Audio, which can
+  defeat echo cancellation for people on speakers.
 - Deafen works like Discord's: every voice keeps arriving but none plays, your mic goes off, and undeafening turns it
   back on if it was on. The room shares each person's deafened state so their tile shows it.
 - Camera bitrate (`src/media.mjs`): 0.9 Mbps at full resolution, 0.3 Mbps at half resolution once the room has six
@@ -95,6 +99,7 @@ npm run deploy       # needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in t
 - `custom.cjs`: a fluffy avatar choice reaching the other person, and camera effects on and off.
 - `kick.cjs`: the host removes someone, who can't rejoin from that browser; the host comes back as host.
 - `dash.cjs`: the stats login and the numbers for a live room.
+- `volume.cjs`: a person's voice and a shared screen's sound turned down on one side only, kept after rejoining.
 - `fullscreen.cjs`: a tile going fullscreen and back keeps drawing frames, stays fullscreen when someone joins, and a
   paused live video starts again.
 - `screen-audio.cjs`: a shared tab's sound reaching and playing at the other person, and stopping with the share.

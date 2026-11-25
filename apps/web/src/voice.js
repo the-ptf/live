@@ -5,6 +5,17 @@ let ticking = 0;
 let blocked = false;
 let report = () => {};
 let silenced = false;
+const VOLUME_KEY = "milagre-live:volumes";
+const volumes = new Map(Object.entries(readVolumes()));
+
+function readVolumes() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VOLUME_KEY) ?? "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
 
 function container() {
   let element = document.getElementById("voices");
@@ -33,15 +44,34 @@ function play(audio) {
   });
 }
 
-export function playVoice(key, stream) {
+/**
+ * `group` names whose sound it is, such as `voice:Ana` or `stream:Ana`: the volume someone sets for it applies to every
+ * track in the group and is remembered on this browser by name, so it survives rejoining.
+ */
+export function playVoice(key, stream, group) {
   let audio = players.get(key);
   if (!audio) {
     audio = Object.assign(document.createElement("audio"), { autoplay: true, muted: silenced });
     container().append(audio);
     players.set(key, audio);
   }
+  audio.dataset.group = group;
+  audio.volume = volumeOf(group);
   if (audio.srcObject !== stream) audio.srcObject = stream;
   play(audio);
+}
+
+export const volumeOf = (group) => {
+  const value = Number(volumes.get(group));
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;
+};
+
+export function setVolume(group, value) {
+  const volume = Math.min(1, Math.max(0, value));
+  if (volume === 1) volumes.delete(group);
+  else volumes.set(group, volume);
+  localStorage.setItem(VOLUME_KEY, JSON.stringify(Object.fromEntries(volumes)));
+  for (const audio of players.values()) if (audio.dataset.group === group) audio.volume = volume;
 }
 
 /** Deafened: every voice keeps arriving but none plays, so undeafening is instant. */

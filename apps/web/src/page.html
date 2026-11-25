@@ -340,6 +340,57 @@
         background: var(--hangup) !important;
         color: var(--on-hangup) !important;
       }
+      .tile .volume {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 7px;
+        background: rgb(0 0 0 / 0.6);
+        color: var(--on-media);
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .tile:hover .volume,
+      .tile .volume:focus-within {
+        opacity: 1;
+      }
+      @media (hover: none) {
+        .tile .volume {
+          opacity: 1;
+        }
+      }
+      .volume-icon {
+        display: grid;
+      }
+      .volume input {
+        --fill: 100%;
+        width: 96px;
+        height: 4px;
+        margin: 0;
+        appearance: none;
+        border-radius: 2px;
+        background: linear-gradient(to right, var(--on-media) var(--fill), rgb(255 255 255 / 0.3) var(--fill));
+        cursor: pointer;
+      }
+      .volume input::-webkit-slider-thumb {
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--on-media);
+      }
+      .volume input::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border: 0;
+        border-radius: 50%;
+        background: var(--on-media);
+      }
       .person {
         display: flex;
         align-items: center;
