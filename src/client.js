@@ -1,10 +1,11 @@
 import { hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
+import { cameraEncoding, SCREEN_BITRATE } from "./media.mjs";
+import { playVoice, stopAllVoices, stopVoice, unwatchLevel, watchLevel } from "./voice.js";
 
 const $ = (id) => document.getElementById(id);
 const NAME_KEY = "milagre-live:name";
 const ROOM_PATH = /^\/r\/([a-z]{4}-[a-z]{4}-[a-z]{4})$/;
-const BITRATE = { screen: 2_500_000, camera: 900_000 };
 
 let myLook = loadLook();
 let effect = loadEffect();
@@ -152,7 +153,8 @@ function push(source) {
   return serial(async () => {
     const entry = local.get(source);
     if (!entry || entry.name || !pc || !sessionId) return;
-    const transceiver = pc.addTransceiver(entry.track, { direction: "sendonly", sendEncodings: [{ maxBitrate: BITRATE[source] }] });
+    const encodings = { camera: [cameraEncoding(peers.length)], screen: [{ maxBitrate: SCREEN_BITRATE }] }[source];
+    const transceiver = pc.addTransceiver(entry.track, { direction: "sendonly", ...(encodings ? { sendEncodings: encodings } : {}) });
     await pc.setLocalDescription(await pc.createOffer());
     const name = `${me.id}-${source}-${++seq}`;
     const answer = await sfu("POST", `sessions/${sessionId}/tracks/new`, {
@@ -163,8 +165,22 @@ function push(source) {
     if (local.get(source) !== entry) return closeMid(transceiver);
     Object.assign(entry, { transceiver, name });
     if (transceiver.sender.track !== entry.track) await transceiver.sender.replaceTrack(entry.track);
+    if (source === "camera") tuneCamera();
     announce();
   });
+}
+
+/** Cameras send less once the room is crowded (see media.mjs), changed in place as people come and go. */
+function tuneCamera() {
+  const sender = local.get("camera")?.transceiver?.sender;
+  if (!sender) return;
+  const parameters = sender.getParameters();
+  const [encoding] = parameters.encodings ?? [];
+  if (!encoding) return;
+  const want = cameraEncoding(peers.length);
+  if (encoding.maxBitrate === want.maxBitrate && (encoding.scaleResolutionDownBy ?? 1) === want.scaleResolutionDownBy) return;
+  Object.assign(encoding, want);
+  sender.setParameters(parameters).catch(() => {});
 }
 
 async function closeMid(transceiver) {
@@ -183,6 +199,7 @@ function stopLocal(source) {
   entry.track.stop();
   entry.raw?.stop();
   entry.pipeline?.stop();
+  if (source === "mic") unwatchLevel("me");
   paintToggle(source, false);
   announce();
   render();
@@ -225,12 +242,20 @@ function pull(name, peer, track) {
     if (!transceiver) throw new Error("The video did not arrive");
     Object.assign(entry, { transceiver, stream: new MediaStream([transceiver.receiver.track]), ready: true });
     if (remote.get(name) !== entry) return closeMid(transceiver);
+    if (entry.source === "mic") {
+      playVoice(name, entry.stream);
+      watchLevel(`peer:${entry.peerId}`, entry.stream, paintSpeaking);
+    }
     render();
   });
 }
 
 function drop(name, entry) {
   remote.delete(name);
+  if (entry.source === "mic") {
+    stopVoice(name);
+    unwatchLevel(`peer:${entry.peerId}`);
+  }
   render();
   if (entry.transceiver) serial(() => closeMid(entry.transceiver));
 }
@@ -254,7 +279,19 @@ function makeTile(key) {
   return tile;
 }
 
-function tileFor(key, { label, stream, kind, mine = false, look, working = false, removable = null }) {
+const MIC_ON =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg>';
+const MIC_OFF =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19v3"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M16.95 16.95A7 7 0 0 1 5 12v-2"/><path d="M18.89 13.23A7 7 0 0 0 19 12v-2"/><path d="m2 2 20 20"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/></svg>';
+
+let speakingNow = new Set();
+
+function paintSpeaking(speaking) {
+  speakingNow = speaking;
+  for (const tile of tiles.values()) tile.classList.toggle("speaking", Boolean(tile.dataset.voice) && speaking.has(tile.dataset.voice));
+}
+
+function tileFor(key, { label, stream, kind, mine = false, look, working = false, removable = null, voice = null, mic = null }) {
   const tile = tiles.get(key) ?? makeTile(key);
   const remove = tile.querySelector(".remove");
   remove.hidden = !removable;
@@ -263,7 +300,8 @@ function tileFor(key, { label, stream, kind, mine = false, look, working = false
     remove.dataset.name = removable.name;
     disarm(remove);
   }
-  tile.className = `tile ${kind}${mine ? " mine" : ""}${stream ? " has-video" : ""}`;
+  tile.className = `tile ${kind}${mine ? " mine" : ""}${stream ? " has-video" : ""}${voice && speakingNow.has(voice) ? " speaking" : ""}`;
+  if (voice) tile.dataset.voice = voice;
   const video = tile.querySelector("video");
   if (video.srcObject !== (stream ?? null)) video.srcObject = stream ?? null;
   video.hidden = !stream;
@@ -271,7 +309,13 @@ function tileFor(key, { label, stream, kind, mine = false, look, working = false
   avatar.hidden = Boolean(stream) || !look;
   if (stream || !look) hideBot(avatar);
   else showBot(avatar, look, { working });
-  tile.querySelector("figcaption").textContent = label;
+  const caption = tile.querySelector("figcaption");
+  caption.textContent = label;
+  if (mic !== null) {
+    const icon = Object.assign(document.createElement("span"), { className: `mic-state${mic ? "" : " off"}`, innerHTML: mic ? MIC_ON : MIC_OFF });
+    icon.setAttribute("aria-label", mic ? "Microphone on" : "Microphone off");
+    caption.prepend(icon);
+  }
   return tile;
 }
 
@@ -337,6 +381,8 @@ function render() {
       mine: true,
       look: myLook,
       working: local.has("screen"),
+      voice: "me",
+      mic: local.has("mic"),
     }),
   );
   for (const peer of others) {
@@ -349,6 +395,8 @@ function render() {
         look: peer.avatar ?? lookFor(peer.id),
         working,
         removable: hosting && !peer.host ? peer : null,
+        voice: `peer:${peer.id}`,
+        mic: peer.tracks.some((track) => track.source === "mic"),
       }),
     );
   }
@@ -376,6 +424,8 @@ function resetMedia() {
   sessionId = null;
   chain = Promise.resolve();
   for (const entry of local.values()) Object.assign(entry, { transceiver: null, name: null });
+  for (const entry of remote.values()) if (entry.source === "mic") unwatchLevel(`peer:${entry.peerId}`);
+  stopAllVoices();
   remote.clear();
 }
 
@@ -407,6 +457,7 @@ function connect(name) {
     } else if (message.type === "peers") {
       peers = message.peers;
       render();
+      tuneCamera();
       if (sessionId) syncRemote();
     }
   });
@@ -505,9 +556,16 @@ function removeClicked(button) {
   toast(`${button.dataset.name} was removed`);
 }
 
-const TOGGLE_LABELS = { camera: ["Turn on camera", "Turn off camera"], screen: ["Share your screen", "Stop sharing"] };
-const CAMERA_KEY = "milagre-live:camera";
-const cameraId = () => localStorage.getItem(CAMERA_KEY);
+const TOGGLE_LABELS = {
+  camera: ["Turn on camera", "Turn off camera"],
+  screen: ["Share your screen", "Stop sharing"],
+  mic: ["Unmute", "Mute"],
+};
+const DEVICES = {
+  camera: { kind: "videoinput", key: "milagre-live:camera", title: "Camera", none: "No camera found" },
+  mic: { kind: "audioinput", key: "milagre-live:mic", title: "Microphone", none: "No microphone found" },
+};
+const deviceId = (source) => localStorage.getItem(DEVICES[source].key);
 
 function paintToggle(source, on) {
   const button = $(source);
@@ -527,54 +585,62 @@ function toggleMenu(id) {
   $(id).hidden = !open;
 }
 
-async function openCameraMenu() {
-  const cameras = (await navigator.mediaDevices.enumerateDevices().catch(() => [])).filter((device) => device.kind === "videoinput");
-  const active = local.get("camera")?.raw?.getSettings().deviceId ?? cameraId();
-  $("camera-menu").replaceChildren(
-    Object.assign(document.createElement("div"), { className: "menu-label", textContent: "Camera" }),
-    ...(cameras.length
-      ? cameras.map((device, index) => {
-          const item = Object.assign(document.createElement("button"), { type: "button", textContent: device.label || `Camera ${index + 1}` });
+async function openDeviceMenu(source) {
+  const { kind, title, none } = DEVICES[source];
+  const devices = (await navigator.mediaDevices.enumerateDevices().catch(() => [])).filter((device) => device.kind === kind && device.deviceId);
+  const entry = local.get(source);
+  const active = (entry?.raw ?? entry?.track)?.getSettings().deviceId ?? deviceId(source);
+  const menu = $(`${source}-menu`);
+  menu.replaceChildren(
+    Object.assign(document.createElement("div"), { className: "menu-label", textContent: title }),
+    ...(devices.length
+      ? devices.map((device, index) => {
+          const item = Object.assign(document.createElement("button"), { type: "button", textContent: device.label || `${title} ${index + 1}` });
           item.setAttribute("role", "menuitemradio");
           item.setAttribute("aria-checked", String(device.deviceId === active));
           item.dataset.device = device.deviceId;
           return item;
         })
-      : [Object.assign(document.createElement("div"), { className: "people-list", textContent: "No camera found" })]),
+      : [Object.assign(document.createElement("div"), { className: "people-list", textContent: none })]),
   );
-  toggleMenu("camera-menu");
+  toggleMenu(`${source}-menu`);
 }
 
-async function chooseCamera(deviceId) {
+async function chooseDevice(source, id) {
   closeMenus();
-  localStorage.setItem(CAMERA_KEY, deviceId);
-  if (!local.has("camera")) return;
-  stopLocal("camera");
-  await toggle("camera");
+  localStorage.setItem(DEVICES[source].key, id);
+  if (!local.has(source)) return;
+  stopLocal(source);
+  await toggle(source);
+}
+
+function capture(source) {
+  const saved = DEVICES[source] && deviceId(source);
+  const chosen = saved ? { deviceId: { ideal: saved } } : {};
+  if (source === "camera") return navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, ...chosen }, audio: false });
+  if (source === "mic")
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, ...chosen }, video: false });
+  return navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
 }
 
 async function toggle(source) {
   if (local.has(source)) return stopLocal(source);
   let stream;
   try {
-    stream =
-      source === "camera"
-        ? await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 }, ...(cameraId() ? { deviceId: { ideal: cameraId() } } : {}) },
-            audio: false,
-          })
-        : await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
+    stream = await capture(source);
   } catch (error) {
     if (error?.name !== "NotAllowedError" && error?.name !== "AbortError") toast(error?.message || "Could not start it");
     else if (source === "camera") toast("Camera access was blocked");
+    else if (source === "mic") toast("Microphone access was blocked");
     return;
   }
-  const [track] = stream.getVideoTracks();
+  const [track] = source === "mic" ? stream.getAudioTracks() : stream.getVideoTracks();
   if (!track) return;
   if (source === "screen") track.contentHint = "detail";
   track.addEventListener("ended", () => (local.get(source)?.raw ?? local.get(source)?.track) === track && stopLocal(source));
   const pipeline = source === "camera" && effect !== "none" ? createEffectCamera(track, effect) : null;
   local.set(source, { track: pipeline?.track ?? track, raw: source === "camera" ? track : null, pipeline, transceiver: null, name: null });
+  if (source === "mic") watchLevel("me", stream, paintSpeaking);
   paintToggle(source, true);
   render();
   push(source);
@@ -613,6 +679,7 @@ $("avatar").addEventListener("click", customize);
 setUpEffects();
 showBot($("join-avatar"), myLook);
 $("camera").addEventListener("click", () => toggle("camera"));
+$("mic").addEventListener("click", () => toggle("mic"));
 $("screen").addEventListener("click", () => toggle("screen"));
 $("leave").addEventListener("click", () => backToJoin(null));
 $("copy").addEventListener("click", () => {
@@ -622,17 +689,20 @@ $("copy").addEventListener("click", () => {
     () => toast(location.href),
   );
 });
-$("camera-menu-button").addEventListener("click", (event) => {
-  event.stopPropagation();
-  openCameraMenu();
-});
+for (const source of ["camera", "mic"]) {
+  $(`${source}-menu-button`).addEventListener("click", (event) => {
+    event.stopPropagation();
+    openDeviceMenu(source);
+  });
+  $(`${source}-menu`).addEventListener("click", (event) => {
+    const item = event.target.closest("[data-device]");
+    if (item) chooseDevice(source, item.dataset.device);
+  });
+}
+window.addEventListener("voice-blocked", () => toast("Click anywhere to hear the room"));
 $("more-button").addEventListener("click", (event) => {
   event.stopPropagation();
   toggleMenu("more-menu");
-});
-$("camera-menu").addEventListener("click", (event) => {
-  const item = event.target.closest("[data-device]");
-  if (item) chooseCamera(item.dataset.device);
 });
 document.addEventListener("click", (event) => !event.target.closest(".menu") && closeMenus());
 document.addEventListener("keydown", (event) => event.key === "Escape" && closeMenus());

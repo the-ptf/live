@@ -23,7 +23,7 @@ const API = /^\/api\/rooms\/([a-z]{4}-[a-z]{4}-[a-z]{4})\/(ws|ice|sfu\/.+)$/;
 const SECURITY_HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
-  "permissions-policy": "camera=(self), display-capture=(self), microphone=()",
+  "permissions-policy": "camera=(self), display-capture=(self), microphone=(self)",
 };
 const CSP =
   "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";

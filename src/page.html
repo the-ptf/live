@@ -24,13 +24,15 @@
         --green: #199a4d;
         --media: #000000;
         --on-media: #ffffff;
-        --dock: #111214;
-        --dock-line: #ffffff14;
-        --dock-ink: #dbdee1;
-        --dock-ink-2: #949ba4;
-        --dock-hover: #ffffff14;
-        --dock-on: #ffffff24;
-        --hangup: #da373c;
+        --hover-2: #1c222b1a;
+        --dock: var(--surface);
+        --dock-line: var(--line-strong);
+        --dock-ink: var(--ink);
+        --dock-ink-2: var(--ink-3);
+        --dock-hover: var(--hover);
+        --dock-on: var(--hover-2);
+        --hangup: var(--red-ink);
+        --on-hangup: var(--on-red);
       }
       @media (prefers-color-scheme: dark) {
         :root {
@@ -48,6 +50,7 @@
           --red-ink: #fd696d;
           --on-red: #0d1624;
           --green: #3cbb72;
+          --hover-2: #e9eff717;
         }
       }
       * {
@@ -191,7 +194,7 @@
         background: var(--dock);
         box-shadow:
           0 0 0 1px var(--dock-line),
-          0 4px 16px rgb(0 0 0 / 0.3);
+          0 2px 8px rgb(0 0 0 / 0.12);
       }
       .icon {
         width: 44px;
@@ -216,10 +219,14 @@
       .icon[aria-pressed="true"] {
         background: var(--dock-on);
       }
+      #mic .when-on,
+      #mic[aria-pressed="true"] .when-off,
       #camera .when-on,
       #camera[aria-pressed="true"] .when-off {
         display: none;
       }
+      #mic[aria-pressed="true"] .when-on,
+      #mic .when-off,
       #camera[aria-pressed="true"] .when-on,
       #camera .when-off {
         display: grid;
@@ -232,8 +239,8 @@
         border: 0;
         border-radius: 12px;
         background: var(--hangup);
-        color: #ffffff;
-        box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+        color: var(--on-hangup);
+        box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
       }
       .hangup:hover {
         filter: brightness(1.08);
@@ -250,11 +257,12 @@
         background: var(--dock);
         box-shadow:
           0 0 0 1px var(--dock-line),
-          0 8px 24px rgb(0 0 0 / 0.35);
+          0 8px 24px rgb(0 0 0 / 0.18);
         color: var(--dock-ink);
         display: grid;
         gap: 2px;
       }
+      #mic-menu,
       #camera-menu {
         left: 0;
       }
@@ -326,7 +334,7 @@
       }
       .remove[data-armed] {
         background: var(--hangup) !important;
-        color: #ffffff !important;
+        color: var(--on-hangup) !important;
       }
       .person {
         display: flex;
@@ -419,6 +427,23 @@
         display: block;
         width: 100%;
         height: 100%;
+      }
+      .tile.speaking {
+        box-shadow:
+          0 0 0 3px var(--green),
+          0 0 0 1px var(--line);
+      }
+      .mic-state {
+        display: inline-grid;
+        place-items: center;
+        margin-right: 5px;
+        vertical-align: -1px;
+      }
+      .mic-state.off {
+        color: #fd696d;
+      }
+      #mic[aria-pressed="false"] {
+        color: var(--hangup);
       }
       .tile figcaption {
         position: absolute;
@@ -612,7 +637,7 @@
           </svg>
           Milagre Live
         </div>
-        <p id="join-intro">Share your screen or camera with anyone who has the link. No audio.</p>
+        <p id="join-intro">Talk, share your screen or turn on your camera with anyone who has the link.</p>
         <button class="join-avatar" id="join-avatar-button" type="button" aria-label="Customize your avatar">
           <div class="join-avatar-bot" id="join-avatar"></div>
           <span>Customize</span>
@@ -631,6 +656,57 @@
       </main>
       <nav class="dock" aria-label="Call controls">
         <div class="group">
+          <button class="icon" id="mic" type="button" aria-pressed="false" aria-label="Unmute" title="Unmute">
+            <span class="when-on"
+              ><svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 19v3" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <rect x="9" y="2" width="6" height="13" rx="3" /></svg></span
+            ><span class="when-off"
+              ><svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 19v3" />
+                <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
+                <path d="M16.95 16.95A7 7 0 0 1 5 12v-2" />
+                <path d="M18.89 13.23A7 7 0 0 0 19 12v-2" />
+                <path d="m2 2 20 20" />
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12" /></svg
+            ></span>
+          </button>
+          <button class="icon chevron" id="mic-menu-button" type="button" aria-haspopup="menu" aria-label="Choose microphone" title="Choose microphone">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
           <button class="icon" id="camera" type="button" aria-pressed="false" aria-label="Turn on camera" title="Turn on camera">
             <span class="when-on"
               ><svg
@@ -777,6 +853,7 @@
             <path d="M4.76 13.582A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 .244.473" />
           </svg>
         </button>
+        <div class="menu" id="mic-menu" role="menu" hidden></div>
         <div class="menu" id="camera-menu" role="menu" hidden></div>
         <div class="menu" id="more-menu" role="menu" hidden>
           <button type="button" role="menuitem" id="copy">

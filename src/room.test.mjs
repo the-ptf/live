@@ -247,8 +247,8 @@ test("every roster change is reported with who has a camera or a screen", async 
   room.message(ana, JSON.stringify({ type: "publish", tracks: [{ name: `${ana.peer.id}-screen-1`, source: "screen" }] }));
   room.leave(ana);
   assert.deepEqual(reports, [
-    { event: "join", peers: [{ name: "Ana", host: true, camera: false, screen: false }] },
-    { event: "change", peers: [{ name: "Ana", host: true, camera: false, screen: true }] },
+    { event: "join", peers: [{ name: "Ana", host: true, camera: false, screen: false, mic: false }] },
+    { event: "change", peers: [{ name: "Ana", host: true, camera: false, screen: true, mic: false }] },
     { event: "change", peers: [] },
   ]);
 });

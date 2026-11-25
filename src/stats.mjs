@@ -1,6 +1,6 @@
-// Upper bounds the page sends at: client.js caps a camera at 0.9 Mbps and a screen at 2.5 Mbps.
-const CAMERA_GB_PER_HOUR = (0.9e6 * 3600) / 8 / 1e9;
-const SCREEN_GB_PER_HOUR = (2.5e6 * 3600) / 8 / 1e9;
+import { cameraEncoding, MIC_BITRATE, SCREEN_BITRATE } from "./media.mjs";
+
+const gbPerHour = (bitsPerSecond) => (bitsPerSecond * 3600) / 8 / 1e9;
 const STALE_MS = 12 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -11,16 +11,23 @@ const CHART_DAYS = 14;
 const dayOf = (time) => new Date(time).toISOString().slice(0, 10);
 const bucketKey = (bucket) => `sample:${String(bucket).padStart(10, "0")}`;
 
-/** Every stream goes out once to each other person in its room. */
+/** Every stream goes out once to each other person in its room, at the most the page lets it send. */
 function totalsOf(rooms) {
   const sum = (pick) => rooms.reduce((total, room) => total + room.peers.filter(pick).length, 0);
-  const gbPerHour = rooms.reduce((total, room) => {
+  const rate = rooms.reduce((total, room) => {
     const others = room.peers.length - 1;
-    const cameras = room.peers.filter((peer) => peer.camera).length;
-    const screens = room.peers.filter((peer) => peer.screen).length;
-    return total + others * (cameras * CAMERA_GB_PER_HOUR + screens * SCREEN_GB_PER_HOUR);
+    const count = (source) => room.peers.filter((peer) => peer[source]).length;
+    const camera = gbPerHour(cameraEncoding(room.peers.length).maxBitrate);
+    return total + others * (count("camera") * camera + count("screen") * gbPerHour(SCREEN_BITRATE) + count("mic") * gbPerHour(MIC_BITRATE));
   }, 0);
-  return { rooms: rooms.length, people: sum(() => true), cameras: sum((peer) => peer.camera), screens: sum((peer) => peer.screen), gbPerHour };
+  return {
+    rooms: rooms.length,
+    people: sum(() => true),
+    cameras: sum((peer) => peer.camera),
+    screens: sum((peer) => peer.screen),
+    mics: sum((peer) => peer.mic),
+    gbPerHour: rate,
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
 # Milagre Live
 
-`live.milagre.cloud`: share your screen or camera, without audio, with anyone who has the link. Joining is typing a
+`live.milagre.cloud`: talk, share your screen or turn on your camera with anyone who has the link. Joining is typing a
 name; there are no accounts. A room lives while someone is in it. It keeps no video and no messages: only the hash of its host key and the browsers the host removed.
 
 ## How it works
@@ -16,6 +16,12 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   shape, a color and Flat or Fluffy (`src/avatars.js`); the choice is kept in the browser and sent as an `avatar`
   message, so everyone sees it. Fluffy bots share one WebGL context. Someone who hasn't sent one gets a bot from their
   peer id.
+- Voice (`src/voice.js`): the mic starts off; turning it on publishes an Opus track like any other, and turning it off
+  unpublishes it, so a muted mic sends nothing. Every voice in the room plays through a hidden `<audio>`; a browser that
+  blocks sound before a click shows a notice and starts them on the next click. One `AudioContext` measures each voice
+  ten times a second for the green speaking ring, without routing it to the speakers.
+- Camera bitrate (`src/media.mjs`): 0.9 Mbps at full resolution, 0.3 Mbps at half resolution once the room has six
+  people, changed in place with `setParameters` as people come and go. The stats use the same numbers.
 - Camera effects (`src/effects.js`) run the camera through a WebGL distortion shader into a canvas and send the canvas's
   track, swapped in with `replaceTrack`, so changing effect never renegotiates. A browser tab in the background may draw
   them at a lower frame rate.

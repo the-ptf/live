@@ -3,6 +3,7 @@ export interface StatsPeer {
   host: boolean;
   camera: boolean;
   screen: boolean;
+  mic?: boolean;
 }
 export interface Report {
   id: string;
@@ -17,7 +18,7 @@ export interface Day {
 }
 export interface Snapshot {
   rooms: { id: string; since: number; updated: number; peers: StatsPeer[] }[];
-  totals: { rooms: number; people: number; cameras: number; screens: number; gbPerHour: number };
+  totals: { rooms: number; people: number; cameras: number; screens: number; mics: number; gbPerHour: number };
   today: Day;
   yesterday: Day;
   day24: { at: number; people: number; rooms: number }[];

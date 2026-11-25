@@ -161,7 +161,7 @@ export function renderDash(snapshot, now) {
   const { totals, today, yesterday, rooms } = snapshot;
   const card = (value, label) => `<div class="card"><b>${escape(value)}</b><span>${escape(label)}</span></div>`;
   const person = (peer) =>
-    `${escape(peer.name)}${peer.host ? '<span class="tag">Host</span>' : ""}${peer.camera ? '<span class="tag">Camera</span>' : ""}${peer.screen ? '<span class="tag">Screen</span>' : ""}`;
+    `${escape(peer.name)}${peer.host ? '<span class="tag">Host</span>' : ""}${peer.camera ? '<span class="tag">Camera</span>' : ""}${peer.screen ? '<span class="tag">Screen</span>' : ""}${peer.mic ? '<span class="tag">Mic</span>' : ""}`;
   const table = rooms.length
     ? `<table><thead><tr><th>Room</th><th>People</th><th class="hide-small">Open for</th></tr></thead><tbody>${rooms
         .map(
@@ -173,7 +173,7 @@ export function renderDash(snapshot, now) {
   return page(
     "Milagre Live stats",
     `<main><header><h1>Milagre Live</h1><span class="muted">Updates every 10 seconds</span><form method="post" action="/dash/logout"><button type="submit">Sign out</button></form></header>
-<div class="cards">${card(totals.rooms, "Rooms open")}${card(totals.people, "People live")}${card(totals.cameras, "Cameras on")}${card(totals.screens, "Screens shared")}${card(`${totals.gbPerHour.toFixed(1)} GB/h`, "Video right now, at most")}</div>
+<div class="cards">${card(totals.rooms, "Rooms open")}${card(totals.people, "People live")}${card(totals.cameras, "Cameras on")}${card(totals.screens, "Screens shared")}${card(totals.mics ?? 0, "Mics on")}${card(`${totals.gbPerHour.toFixed(1)} GB/h`, "Video right now, at most")}</div>
 <h2>Today (UTC)</h2><div class="cards">${card(today.joins, "Joins")}${card(today.rooms, "Rooms started")}${card(today.peak, "Most people at once")}${card(yesterday.joins, "Joins yesterday")}${card(`${round(snapshot.monthGb)} GB`, "Video this month, at most, of 1,000 free")}</div>
 ${charts(snapshot)}
 <h2>Open rooms</h2>${table}</main>`,

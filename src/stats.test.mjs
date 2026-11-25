@@ -30,7 +30,7 @@ test("rooms appear while someone is in them and count joins, rooms started and t
     ],
   );
   assert.equal(snap.rooms[0].since, Date.parse("2026-11-25T10:00:00Z"));
-  assert.deepEqual({ ...snap.totals, gbPerHour: undefined }, { rooms: 2, people: 3, cameras: 1, screens: 1, gbPerHour: undefined });
+  assert.deepEqual({ ...snap.totals, gbPerHour: undefined }, { rooms: 2, people: 3, cameras: 1, screens: 1, mics: 0, gbPerHour: undefined });
   assert.ok(Math.abs(snap.totals.gbPerHour - 0.405) < 0.001);
   assert.deepEqual({ ...snap.today, gb: undefined }, { joins: 3, rooms: 2, peak: 3, gb: undefined });
 
@@ -81,4 +81,16 @@ test("the 24-hour series carries the last value through quiet stretches", () => 
   const at = (time) => series.find((point) => point.at <= Date.parse(time) && Date.parse(time) < point.at + 5 * 60 * 1000);
   assert.deepEqual([at("2026-11-25T09:00:00Z").people, at("2026-11-25T10:30:00Z").people, at("2026-11-25T11:20:00Z").people], [0, 2, 0]);
   assert.equal(at("2026-11-25T11:00:00Z").people, 2);
+});
+
+test("cameras count at the lower rate once a room has six people, and voices add a little", () => {
+  const stats = createStats({ store: memoryStore(), now: () => Date.parse("2026-11-25T10:00:00Z") });
+  const five = Array.from({ length: 5 }, (_, index) => person(`P${index}`, { camera: true }));
+  stats.report({ id: "aaaa-bbbb-cccc", event: "join", peers: five });
+  assert.ok(Math.abs(stats.snapshot().totals.gbPerHour - 5 * 4 * 0.405) < 0.001);
+  stats.report({ id: "aaaa-bbbb-cccc", event: "join", peers: [...five, person("P5", { camera: true })] });
+  assert.ok(Math.abs(stats.snapshot().totals.gbPerHour - 6 * 5 * 0.135) < 0.001);
+  stats.report({ id: "aaaa-bbbb-cccc", event: "change", peers: [person("Ana", { mic: true }), person("Bia")] });
+  assert.ok(Math.abs(stats.snapshot().totals.gbPerHour - 0.0225) < 0.0001);
+  assert.equal(stats.snapshot().totals.mics, 1);
 });
