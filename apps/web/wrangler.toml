@@ -32,3 +32,8 @@ new_sqlite_classes = ["LiveStats"]
 type = "Text"
 globs = ["**/*.html", "**/*.txt"]
 fallthrough = false
+
+[[rules]]
+type = "Data"
+globs = ["**/*.bin"]
+fallthrough = false

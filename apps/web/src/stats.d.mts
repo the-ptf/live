@@ -5,6 +5,7 @@ export interface StatsPeer {
   screen: boolean;
   mic?: boolean;
   screenAudio?: boolean;
+  screenKbps?: number | null;
 }
 export interface Report {
   id: string;

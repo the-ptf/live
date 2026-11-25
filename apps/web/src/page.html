@@ -270,6 +270,10 @@
       #camera-menu {
         left: 0;
       }
+      #screen-menu {
+        left: 50%;
+        transform: translateX(-50%);
+      }
       #more-menu {
         right: 0;
       }
@@ -878,6 +882,21 @@
               <path d="M8 21h8" />
             </svg>
           </button>
+          <button class="icon chevron" id="screen-menu-button" type="button" aria-haspopup="menu" aria-label="Screen quality" title="Screen quality">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
           <button class="icon" id="effects" type="button" aria-pressed="false" aria-label="Camera effects" title="Camera effects">
             <svg
               width="20"
@@ -958,6 +977,7 @@
         </button>
         <div class="menu" id="mic-menu" role="menu" hidden></div>
         <div class="menu" id="camera-menu" role="menu" hidden></div>
+        <div class="menu" id="screen-menu" role="menu" hidden></div>
         <div class="menu" id="more-menu" role="menu" hidden>
           <button type="button" role="menuitem" id="copy">
             <svg

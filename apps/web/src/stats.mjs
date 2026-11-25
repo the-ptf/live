@@ -22,7 +22,7 @@ function totalsOf(rooms) {
       total +
       others *
         (count("camera") * camera +
-          count("screen") * gbPerHour(SCREEN_BITRATE) +
+          room.peers.reduce((sum, peer) => sum + (peer.screen ? gbPerHour(peer.screenKbps ? peer.screenKbps * 1000 : SCREEN_BITRATE) : 0), 0) +
           count("mic") * gbPerHour(MIC_BITRATE) +
           count("screenAudio") * gbPerHour(SCREEN_AUDIO_BITRATE))
     );

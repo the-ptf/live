@@ -10,11 +10,12 @@ export interface Peer {
   name: string;
   token: string;
   sessionId: string | null;
-  tracks: { name: string; source: Source }[];
+  tracks: { name: string; source: Source; kbps?: number }[];
   avatar: Avatar | null;
   host: boolean;
   client: string | null;
   deafened?: boolean;
+  muted?: boolean;
 }
 export interface Avatar {
   shape: string;

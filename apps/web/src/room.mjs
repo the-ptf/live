@@ -56,6 +56,7 @@ const publicPeer = (peer) => ({
   avatar: peer.avatar ?? null,
   host: Boolean(peer.host),
   deafened: Boolean(peer.deafened),
+  muted: Boolean(peer.muted),
 });
 
 function cleanAvatar(avatar) {
@@ -89,6 +90,7 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
         screen: peer.tracks.some((track) => track.source === "screen"),
         mic: peer.tracks.some((track) => track.source === "mic"),
         screenAudio: peer.tracks.some((track) => track.source === "screen-audio"),
+        screenKbps: peer.tracks.find((track) => track.source === "screen")?.kbps ?? null,
       })),
     );
   };
@@ -146,8 +148,10 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
         return broadcast();
       }
       if (message?.type === "state") {
-        if (typeof message.deafened !== "boolean" || Boolean(entry.peer.deafened) === message.deafened) return;
-        io.save(socket, { ...entry.peer, deafened: message.deafened });
+        const next = { ...entry.peer };
+        for (const field of ["deafened", "muted"]) if (typeof message[field] === "boolean") next[field] = message[field];
+        if (next.deafened === entry.peer.deafened && next.muted === entry.peer.muted) return;
+        io.save(socket, next);
         return broadcast();
       }
       if (message?.type === "avatar") {
@@ -161,7 +165,8 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
       for (const track of message.tracks) {
         if (!track || !SOURCES.has(track.source) || !TRACK_NAME.test(track.name ?? "")) return;
         if (!track.name.startsWith(`${entry.peer.id}-${track.source}-`)) return;
-        tracks.push({ name: track.name, source: track.source });
+        const kbps = track.source === "screen" && Number.isInteger(track.kbps) && track.kbps >= 100 && track.kbps <= 20_000 ? track.kbps : undefined;
+        tracks.push(kbps ? { name: track.name, source: track.source, kbps } : { name: track.name, source: track.source });
       }
       io.save(socket, { ...entry.peer, tracks });
       broadcast();

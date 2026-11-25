@@ -1,5 +1,8 @@
 import page from "./page.html";
 import script from "../dist/app.txt";
+import rnnoiseWorklet from "../dist/rnnoise-worklet.txt";
+import rnnoise from "../dist/rnnoise.bin";
+import rnnoiseSimd from "../dist/rnnoise_simd.bin";
 import { createRoom, FALLBACK_ICE, ROOM_ID, type Answer, type IceServer, type Peer, type Room } from "./room.mjs";
 import { createStats, type Report } from "./stats.mjs";
 import { passwordMatches, renderDash, renderLogin, sessionCookie, signedIn, signOutCookie } from "./dash.mjs";
@@ -26,7 +29,14 @@ const SECURITY_HEADERS = {
   "permissions-policy": "camera=(self), display-capture=(self), microphone=(self)",
 };
 const CSP =
-  "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+/** RNNoise for the mic's noise suppression: an AudioWorklet loads by URL, and its wasm comes with it. */
+const NOISE_FILES: Record<string, { body: string | ArrayBuffer; type: string }> = {
+  "/noise/rnnoise-worklet.js": { body: rnnoiseWorklet, type: "text/javascript; charset=utf-8" },
+  "/noise/rnnoise.wasm": { body: rnnoise, type: "application/wasm" },
+  "/noise/rnnoise_simd.wasm": { body: rnnoiseSimd, type: "application/wasm" },
+};
 
 const DASH_CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
 const STATS_URL = "https://stats.internal";
@@ -86,6 +96,9 @@ export default {
       });
     if (request.method === "GET" && pathname === "/app.js")
       return new Response(script, { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache", ...SECURITY_HEADERS } });
+    const noise = NOISE_FILES[pathname];
+    if (request.method === "GET" && noise)
+      return new Response(noise.body, { headers: { "content-type": noise.type, "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
     if (pathname === "/dash" || pathname.startsWith("/dash/")) return dash(request, env, pathname);
     if (pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "content-type": "text/plain" } });
     const match = API.exec(pathname);

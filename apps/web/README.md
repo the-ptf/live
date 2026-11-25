@@ -16,8 +16,10 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   shape, a color and Flat or Fluffy (`src/avatars.js`); the choice is kept in the browser and sent as an `avatar`
   message, so everyone sees it. Fluffy bots share one WebGL context. Someone who hasn't sent one gets a bot from their
   peer id.
-- Voice (`src/voice.js`): the mic starts off; turning it on publishes an Opus track like any other, and turning it off
-  unpublishes it, so a muted mic sends nothing. Every voice in the room plays through a hidden `<audio>`; a browser that
+- Voice (`src/voice.js`): the mic starts off; turning it on the first time publishes an Opus track. Muting after that
+  keeps the mic open and sends silence (`track.enabled = false`), like Discord, and the room shares who is muted:
+  stopping and reopening it on every click made other sound dip, from Bluetooth headsets changing mode and from
+  renegotiating. Every voice in the room plays through a hidden `<audio>`; a browser that
   blocks sound before a click shows a notice and starts them on the next click. One `AudioContext` measures each voice
   ten times a second for the green speaking ring, without routing it to the speakers.
 - A screen share carries its sound as a separate `screen-audio` track (128 kbps): the shared tab's sound, or the whole
@@ -30,6 +32,14 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   sound gets one for the stream, from 0 to 100%. Levels are kept in the browser by the person's name (`voice:<name>`,
   `stream:<name>`), so they survive rejoining. Going past 100% would mean playing voices through Web Audio, which can
   defeat echo cancellation for people on speakers.
+- Noise suppression (`src/noise.js`, on by default, switched in the mic menu): the mic runs through RNNoise from
+  `@sapphi-red/web-noise-suppressor` (MIT) in an AudioWorklet, on top of the browser's own. The Worker serves the
+  worklet and both wasm builds from `/noise/`, copied into `dist/` by `build.mjs`; the page's CSP allows
+  `wasm-unsafe-eval` for them.
+- Screen quality (`SCREEN_PRESETS` in `src/media.mjs`, the chevron next to Share screen): 720p 30, 1080p 30 (the
+  default), 1080p 60 or the screen's own size at 60 fps, at 2.5, 4, 6 or 8 Mbps, and best for smooth motion or sharp
+  text (`contentHint` and `degradationPreference`). A running share changes in place, and its bitrate rides along with
+  its track so the stats count it.
 - Deafen works like Discord's: every voice keeps arriving but none plays, your mic goes off, and undeafening turns it
   back on if it was on. The room shares each person's deafened state so their tile shows it.
 - Camera bitrate (`src/media.mjs`): 0.9 Mbps at full resolution, 0.3 Mbps at half resolution once the room has six
@@ -102,6 +112,8 @@ npm run deploy       # needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in t
 - `custom.cjs`: a fluffy avatar choice reaching the other person, and camera effects on and off.
 - `kick.cjs`: the host removes someone, who can't rejoin from that browser; the host comes back as host.
 - `dash.cjs`: the stats login and the numbers for a live room.
+- `noise.cjs`: the mic going out through RNNoise and reaching the other person, and switching it off.
+- `screen-quality.cjs`: what a share may send at each quality and focus, changed while sharing.
 - `volume.cjs`: a person's voice and a shared screen's sound turned down on one side only, kept after rejoining.
 - `fullscreen.cjs`: a tile going fullscreen and back keeps drawing frames, stays fullscreen when someone joins, and a
   paused live video starts again.

@@ -77,12 +77,27 @@ const cameraEncoding = (p) =>
   console.log("Bia's own mic icon:", await bia.$eval("#gallery figure.mine .mic-state", (e) => e.getAttribute("aria-label")));
   console.log("Ana camera with 2 people:", await cameraEncoding(ana));
   await bia.screenshot({ path: `${OUT}/voice.png` });
+  const micBefore = await ana.evaluate(
+    () =>
+      window.__pcs
+        .at(-1)
+        .getSenders()
+        .find((sender) => sender.track?.kind === "audio").track.id,
+  );
   await ana.click("#mic");
-  await bia.waitForFunction(() => document.querySelectorAll("#voices audio").length === 0, { timeout: 15000 });
-  console.log("ok: muting removes Ana's voice at Bia");
+  await bia.waitForFunction(() => document.querySelector('#gallery figure:not(.mine) .mic-state[aria-label="Microphone off"]'), { timeout: 15000 });
+  const muted = await ana.evaluate(() => {
+    const track = window.__pcs
+      .at(-1)
+      .getSenders()
+      .find((sender) => sender.track?.kind === "audio").track;
+    return { id: track.id, enabled: track.enabled };
+  });
+  console.log("ok: muting shows at Bia; Ana keeps the same mic track, silenced:", muted.id === micBefore && !muted.enabled);
+  console.log("Bia still has Ana's voice track (no renegotiation):", await bia.$$eval("#voices audio", (audios) => audios.length));
   await ana.click("#mic");
   await bia.click("#mic");
-  await bia.waitForFunction(() => document.querySelectorAll("#voices audio").length === 1, { timeout: 15000 });
+  await bia.waitForFunction(() => document.querySelector('#gallery figure:not(.mine) .mic-state[aria-label="Microphone on"]'), { timeout: 15000 });
   await bia.click("#deafen");
   await ana.waitForFunction(() => document.querySelector('#gallery figure:not(.mine) .mic-state[aria-label="Deafened"]'), { timeout: 15000 });
   console.log(

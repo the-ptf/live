@@ -247,8 +247,8 @@ test("every roster change is reported with who has a camera or a screen", async 
   room.message(ana, JSON.stringify({ type: "publish", tracks: [{ name: `${ana.peer.id}-screen-1`, source: "screen" }] }));
   room.leave(ana);
   assert.deepEqual(reports, [
-    { event: "join", peers: [{ name: "Ana", host: true, camera: false, screen: false, mic: false, screenAudio: false }] },
-    { event: "change", peers: [{ name: "Ana", host: true, camera: false, screen: true, mic: false, screenAudio: false }] },
+    { event: "join", peers: [{ name: "Ana", host: true, camera: false, screen: false, mic: false, screenAudio: false, screenKbps: null }] },
+    { event: "change", peers: [{ name: "Ana", host: true, camera: false, screen: true, mic: false, screenAudio: false, screenKbps: null }] },
     { event: "change", peers: [] },
   ]);
 });
@@ -288,4 +288,34 @@ test("a screen share's sound is its own track, published next to the screen", as
       .tracks.map((track) => track.source),
     ["screen", "screen-audio"],
   );
+});
+
+test("muting reaches everyone without unpublishing the mic", async () => {
+  const { room, join } = harness();
+  const ana = await join("Ana");
+  const bia = await join("Bia");
+  room.message(ana, JSON.stringify({ type: "publish", tracks: [{ name: `${ana.peer.id}-mic-1`, source: "mic" }] }));
+  room.message(ana, JSON.stringify({ type: "state", muted: true }));
+  const seen = bia.sent.at(-1).peers.find((peer) => peer.name === "Ana");
+  assert.equal(seen.muted, true);
+  assert.deepEqual(
+    seen.tracks.map((track) => track.source),
+    ["mic"],
+  );
+  room.message(ana, JSON.stringify({ type: "state", muted: false, deafened: true }));
+  assert.deepEqual((({ muted, deafened }) => ({ muted, deafened }))(bia.sent.at(-1).peers.find((peer) => peer.name === "Ana")), {
+    muted: false,
+    deafened: true,
+  });
+});
+
+test("a screen share's bitrate rides along with its track, within bounds", async () => {
+  const { room, join } = harness();
+  const ana = await join("Ana");
+  const bia = await join("Bia");
+  const publish = (kbps) => room.message(ana, JSON.stringify({ type: "publish", tracks: [{ name: `${ana.peer.id}-screen-1`, source: "screen", kbps }] }));
+  publish(6000);
+  assert.equal(bia.sent.at(-1).peers.find((peer) => peer.name === "Ana").tracks[0].kbps, 6000);
+  publish(999_999);
+  assert.equal(bia.sent.at(-1).peers.find((peer) => peer.name === "Ana").tracks[0].kbps, undefined);
 });

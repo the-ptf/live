@@ -94,3 +94,9 @@ test("cameras count at the lower rate once a room has six people, and voices add
   assert.ok(Math.abs(stats.snapshot().totals.gbPerHour - 0.0225) < 0.0001);
   assert.equal(stats.snapshot().totals.mics, 1);
 });
+
+test("a screen share counts at the bitrate its sharer picked", () => {
+  const stats = createStats({ store: memoryStore(), now: () => Date.parse("2026-11-25T10:00:00Z") });
+  stats.report({ id: "aaaa-bbbb-cccc", event: "join", peers: [person("Ana", { screen: true, screenKbps: 8000 }), person("Bia")] });
+  assert.ok(Math.abs(stats.snapshot().totals.gbPerHour - 3.6) < 0.001);
+});

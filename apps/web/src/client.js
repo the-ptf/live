@@ -1,6 +1,7 @@
 import { hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
-import { cameraEncoding, SCREEN_AUDIO_BITRATE, SCREEN_BITRATE } from "./media.mjs";
+import { noiseSuppression, setNoiseSuppression, suppressNoise } from "./noise.js";
+import { cameraEncoding, DEFAULT_SCREEN_PRESET, SCREEN_AUDIO_BITRATE, SCREEN_PRESETS } from "./media.mjs";
 import { playVoice, setDeafened, setVolume, stopAllVoices, stopVoice, unwatchLevel, volumeOf, watchLevel } from "./voice.js";
 
 const $ = (id) => document.getElementById(id);
@@ -10,6 +11,7 @@ const ROOM_PATH = /^\/r\/([a-z]{4}-[a-z]{4}-[a-z]{4})$/;
 let myLook = loadLook();
 let effect = loadEffect();
 let deafened = false;
+let micMuted = false;
 let micBeforeDeafen = false;
 let roomId = ROOM_PATH.exec(location.pathname)?.[1] ?? null;
 let socket = null;
@@ -134,7 +136,22 @@ async function startSession(iceServers) {
 }
 
 function sendState() {
-  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "state", deafened }));
+  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "state", deafened, muted: micMuted }));
+}
+
+const micLive = () => local.has("mic") && !micMuted;
+
+/**
+ * Muting keeps the mic open and sends silence, like Discord. Stopping and reopening it on every click made other sound
+ * dip: the device switched modes (Bluetooth headsets drop to call quality) and the connection renegotiated.
+ */
+function setMicMuted(on) {
+  micMuted = on;
+  const entry = local.get("mic");
+  if (entry) entry.track.enabled = !on;
+  paintToggle("mic", micLive());
+  sendState();
+  render();
 }
 
 /** Like Discord: deafening also mutes you, and undeafening turns your mic back on if it was on. */
@@ -148,11 +165,12 @@ async function toggleDeafen() {
   sendState();
   render();
   if (deafened) {
-    micBeforeDeafen = local.has("mic");
-    if (micBeforeDeafen) stopLocal("mic");
-  } else if (micBeforeDeafen && !local.has("mic")) {
+    micBeforeDeafen = micLive();
+    if (micBeforeDeafen) setMicMuted(true);
+  } else if (micBeforeDeafen) {
     micBeforeDeafen = false;
-    await toggle("mic");
+    if (local.has("mic")) setMicMuted(false);
+    else await toggle("mic");
   }
 }
 
@@ -169,8 +187,42 @@ function customize() {
   });
 }
 
+const QUALITY_KEY = "milagre-live:screen-quality";
+const BEST_KEY = "milagre-live:screen-best";
+const screenPreset = () => SCREEN_PRESETS[localStorage.getItem(QUALITY_KEY)] ?? SCREEN_PRESETS[DEFAULT_SCREEN_PRESET];
+const screenBest = () => (localStorage.getItem(BEST_KEY) === "text" ? "text" : "motion");
+const screenVideo = (preset) => ({
+  frameRate: { ideal: preset.fps, max: preset.fps },
+  ...(preset.width ? { width: { max: preset.width }, height: { max: preset.height } } : {}),
+});
+
+/**
+ * Applies the picked quality to a running share without picking the screen again: the capture's size and frame rate,
+ * what the encoder may send, and what it gives up first when the network is short (frames for text, sharpness for
+ * motion).
+ */
+function tuneScreen() {
+  const entry = local.get("screen");
+  if (!entry) return;
+  const preset = screenPreset();
+  entry.track.contentHint = screenBest() === "text" ? "detail" : "motion";
+  entry.track.applyConstraints(screenVideo(preset)).catch(() => {});
+  const sender = entry.transceiver?.sender;
+  if (!sender) return;
+  const parameters = sender.getParameters();
+  const [encoding] = parameters.encodings ?? [];
+  if (!encoding) return;
+  Object.assign(encoding, { maxBitrate: preset.bitrate, maxFramerate: preset.fps });
+  parameters.degradationPreference = screenBest() === "text" ? "maintain-resolution" : "maintain-framerate";
+  sender.setParameters(parameters).catch(() => {});
+}
+
 function announce() {
-  const tracks = [...local].filter(([, entry]) => entry.name).map(([source, entry]) => ({ name: entry.name, source }));
+  const tracks = [...local]
+    .filter(([, entry]) => entry.name)
+    .map(([source, entry]) =>
+      source === "screen" ? { name: entry.name, source, kbps: Math.round(screenPreset().bitrate / 1000) } : { name: entry.name, source },
+    );
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "publish", tracks }));
 }
 
@@ -180,7 +232,7 @@ function push(source) {
     if (!entry || entry.name || !pc || !sessionId) return;
     const encodings = {
       camera: [cameraEncoding(peers.length)],
-      screen: [{ maxBitrate: SCREEN_BITRATE }],
+      screen: [{ maxBitrate: screenPreset().bitrate, maxFramerate: screenPreset().fps }],
       "screen-audio": [{ maxBitrate: SCREEN_AUDIO_BITRATE }],
     }[source];
     const transceiver = pc.addTransceiver(entry.track, { direction: "sendonly", ...(encodings ? { sendEncodings: encodings } : {}) });
@@ -195,6 +247,7 @@ function push(source) {
     Object.assign(entry, { transceiver, name });
     if (transceiver.sender.track !== entry.track) await transceiver.sender.replaceTrack(entry.track);
     if (source === "camera") tuneCamera();
+    if (source === "screen") tuneScreen();
     announce();
   });
 }
@@ -481,7 +534,7 @@ function render() {
       look: myLook,
       working: local.has("screen"),
       voice: "me",
-      mic: local.has("mic"),
+      mic: micLive(),
       deaf: deafened,
     }),
   );
@@ -496,7 +549,7 @@ function render() {
         working,
         removable: hosting && !peer.host ? peer : null,
         voice: `peer:${peer.id}`,
-        mic: peer.tracks.some((track) => track.source === "mic"),
+        mic: peer.tracks.some((track) => track.source === "mic") && !peer.muted,
         deaf: Boolean(peer.deafened),
         sound: peer.tracks.some((track) => track.source === "mic") ? { group: `voice:${peer.name}`, label: `${peer.name}'s volume` } : null,
       }),
@@ -718,6 +771,12 @@ async function openDeviceMenu(source) {
         })
       : [Object.assign(document.createElement("div"), { className: "people-list", textContent: none })]),
   );
+  if (source === "mic") {
+    const item = Object.assign(document.createElement("button"), { type: "button", textContent: "Noise suppression", id: "noise-toggle" });
+    item.setAttribute("role", "menuitemcheckbox");
+    item.setAttribute("aria-checked", String(noiseSuppression()));
+    menu.append(Object.assign(document.createElement("div"), { className: "menu-line" }), item);
+  }
   toggleMenu(`${source}-menu`);
 }
 
@@ -734,7 +793,7 @@ async function chooseDevice(source, id) {
  * with a "Share audio" switch). A browser that refuses audio for screen capture gets asked again for video alone.
  */
 async function captureScreen() {
-  const video = { frameRate: { ideal: 15, max: 30 } };
+  const video = screenVideo(screenPreset());
   let stream;
   try {
     stream = await navigator.mediaDevices.getDisplayMedia({
@@ -766,6 +825,47 @@ function keepCallOutOfSound(stream) {
   toast("Sharing without sound: this browser would send the call back to everyone. Share a tab to include its sound.", 6000);
 }
 
+function radio(label, checked, data) {
+  const item = Object.assign(document.createElement("button"), { type: "button", textContent: label });
+  item.setAttribute("role", "menuitemradio");
+  item.setAttribute("aria-checked", String(checked));
+  Object.assign(item.dataset, data);
+  return item;
+}
+
+function openScreenMenu() {
+  const current = screenPreset();
+  $("screen-menu").replaceChildren(
+    Object.assign(document.createElement("div"), { className: "menu-label", textContent: "Screen quality" }),
+    ...Object.entries(SCREEN_PRESETS).map(([id, preset]) => radio(preset.label, preset === current, { quality: id })),
+    Object.assign(document.createElement("div"), { className: "menu-line" }),
+    Object.assign(document.createElement("div"), { className: "menu-label", textContent: "Best for" }),
+    radio("Smooth motion", screenBest() === "motion", { best: "motion" }),
+    radio("Sharp text", screenBest() === "text", { best: "text" }),
+  );
+  toggleMenu("screen-menu");
+}
+
+function chooseScreen(item) {
+  closeMenus();
+  if (item.dataset.quality) localStorage.setItem(QUALITY_KEY, item.dataset.quality);
+  if (item.dataset.best) localStorage.setItem(BEST_KEY, item.dataset.best);
+  toast(`${screenPreset().label}, ${screenBest() === "text" ? "sharp text" : "smooth motion"}`);
+  if (!local.has("screen")) return;
+  tuneScreen();
+  announce();
+}
+
+/** Applies at once: a mic that is on starts again with or without RNNoise. */
+async function toggleNoise() {
+  closeMenus();
+  setNoiseSuppression(!noiseSuppression());
+  toast(noiseSuppression() ? "Noise suppression on" : "Noise suppression off");
+  if (!local.has("mic")) return;
+  stopLocal("mic");
+  await toggle("mic");
+}
+
 function capture(source) {
   const saved = DEVICES[source] && deviceId(source);
   const chosen = saved ? { deviceId: { ideal: saved } } : {};
@@ -776,6 +876,13 @@ function capture(source) {
 }
 
 async function toggle(source) {
+  if (source === "mic" && local.has("mic")) {
+    if (micMuted && deafened) {
+      micBeforeDeafen = false;
+      toggleDeafen();
+    }
+    return setMicMuted(!micMuted);
+  }
   if (local.has(source)) return stopLocal(source);
   if (source === "mic" && deafened) {
     micBeforeDeafen = false;
@@ -792,7 +899,7 @@ async function toggle(source) {
   }
   const [track] = source === "mic" ? stream.getAudioTracks() : stream.getVideoTracks();
   if (!track) return;
-  if (source === "screen") track.contentHint = "detail";
+  if (source === "screen") track.contentHint = screenBest() === "text" ? "detail" : "motion";
   track.addEventListener("ended", () => (local.get(source)?.raw ?? local.get(source)?.track) === track && stopLocal(source));
   const pipeline = source === "camera" && effect !== "none" ? createEffectCamera(track, effect) : null;
   local.set(source, { track: pipeline?.track ?? track, raw: source === "camera" ? track : null, pipeline, transceiver: null, name: null });
@@ -802,7 +909,14 @@ async function toggle(source) {
     local.set("screen-audio", { track: sound, raw: null, pipeline: null, transceiver: null, name: null });
     push("screen-audio");
   }
-  if (source === "mic") watchLevel("me", stream, paintSpeaking);
+  if (source === "mic") {
+    micMuted = false;
+    const cleaned = noiseSuppression() ? await suppressNoise(track).catch(() => null) : null;
+    if (noiseSuppression() && !cleaned) toast("Noise suppression couldn't start; your mic is on without it");
+    if (cleaned) Object.assign(local.get("mic"), { track: cleaned.track, raw: track, pipeline: cleaned });
+    watchLevel("me", new MediaStream([local.get("mic").track]), paintSpeaking);
+    sendState();
+  }
   paintToggle(source, true);
   render();
   push(source);
@@ -860,8 +974,17 @@ for (const source of ["camera", "mic"]) {
   $(`${source}-menu`).addEventListener("click", (event) => {
     const item = event.target.closest("[data-device]");
     if (item) chooseDevice(source, item.dataset.device);
+    if (event.target.closest("#noise-toggle")) toggleNoise();
   });
 }
+$("screen-menu-button").addEventListener("click", (event) => {
+  event.stopPropagation();
+  openScreenMenu();
+});
+$("screen-menu").addEventListener("click", (event) => {
+  const item = event.target.closest("[data-quality], [data-best]");
+  if (item) chooseScreen(item);
+});
 window.addEventListener("voice-blocked", () => toast("Click anywhere to hear the room"));
 $("more-button").addEventListener("click", (event) => {
   event.stopPropagation();

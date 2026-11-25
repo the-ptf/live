@@ -19,4 +19,5 @@ npm run deploy     # apps/web, with CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_
 npm run e2e        # real headless browsers against LIVE_URL (default http://localhost:8799)
 ```
 
-Node 22 or later. MIT licensed; `apps/web/src/bots.json` holds Open Bot Avatar's gallery under its own MIT notice.
+Node 22 or later. MIT licensed; `apps/web/src/bots.json` holds Open Bot Avatar's gallery under its own MIT notice, and RNNoise comes from
+`@sapphi-red/web-noise-suppressor` (MIT).
