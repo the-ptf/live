@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "npx wrangler@4.147.0 dev --local-upstream localhost:8799 --port 8799 --var ALLOW_LOCALHOST:true --env-file $HOME/.private_keys/live.env",
     "deploy": "npx wrangler@4.147.0 deploy",
-    "e2e": "node e2e/landing.cjs && node e2e/join.cjs && node e2e/two-peers.cjs && node e2e/custom.cjs && node e2e/kick.cjs && node e2e/voice.cjs && node e2e/screen-audio.cjs && node e2e/fullscreen.cjs && node e2e/volume.cjs && node e2e/noise.cjs && node e2e/screen-quality.cjs && node e2e/bots.cjs"
+    "e2e": "node e2e/landing.cjs && node e2e/join.cjs && node e2e/chat.cjs && node e2e/two-peers.cjs && node e2e/custom.cjs && node e2e/kick.cjs && node e2e/voice.cjs && node e2e/screen-audio.cjs && node e2e/fullscreen.cjs && node e2e/volume.cjs && node e2e/noise.cjs && node e2e/screen-quality.cjs && node e2e/bots.cjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "5.3.0",

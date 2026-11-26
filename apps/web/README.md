@@ -62,6 +62,16 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   The tracks it opened go into the room as they are, so nobody is asked twice (`preview.js`). The mic only opens on its
   own when the browser already allows it. In a room, it shows who's here and whose room it is from
   `POST /api/rooms/<room>/who` (names, bots, host; no ids or tokens), checked every 8 seconds.
+- The room has a text chat (`chat-ui.js`, checked by `chat.mjs` in the room): text up to 4,000 characters with links,
+  inline code and ``` blocks, and one picture per message, shrunk in the browser to at most 1280 px and about 290 KB of
+  JPEG. Everything is built from text nodes, so nothing posted runs as HTML. The room keeps the last 50 messages in its
+  storage (one key per message, `chat:<n>`), sends them to whoever joins, forgets them when the last person leaves, and
+  lets one person post 6 messages per 10 seconds. On a phone the panel is a full-screen sheet, and the dock moves
+  Camera effects and Your avatar into More.
+- A screen share goes out as three simulcast layers, `f`, `h` and `q` (full, half and quarter size, `screenLayers` in
+  `media.mjs`), and each viewer subscribes with `priorityOrdering` and `ridNotAvailable` set to `asciibetical`, so
+  Cloudflare drops a viewer whose connection can't keep up to the next layer instead of freezing the picture. A track
+  only announces the layers its sender really has.
 - `/dash` is the owner's stats: rooms open, people live, cameras, screens, an upper bound on video GB/hour, and the
   day's joins, rooms started and peak. Each room reports its roster on every change to one `LiveStats` Durable Object;
   a room silent for 12 hours drops off. The page signs in with the `DASH_PASSWORD` secret and keeps a 30-day HttpOnly

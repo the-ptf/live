@@ -29,7 +29,7 @@ const pressed = (page, id) => page.$eval(id, (element) => element.getAttribute("
   assert.equal(await rafa.$eval("#join-title", (element) => element.textContent), "Start a room");
   await rafa.type("#name", "Rafa");
   await rafa.click("#join-button");
-  await rafa.waitForFunction(() => document.getElementById("join").hidden && /^\/r\//.test(location.pathname), { timeout: 20000 });
+  await rafa.waitForFunction(() => document.getElementById("join").hidden && location.pathname.startsWith("/r/"), { timeout: 20000 });
   await rafa.waitForFunction(() => document.getElementById("mic").getAttribute("aria-pressed") === "true", { timeout: 15000 });
   console.log("ok: Rafa starts a room with the mic on and the camera off:", await pressed(rafa, "#camera"));
 

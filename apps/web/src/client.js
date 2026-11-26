@@ -1,6 +1,7 @@
 import { NAME_KEY, cleanName, createRoom, hostKeyName, randomToken } from "./ids.js";
 import { botSvg, hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
 import { createPreview } from "./preview.js";
+import { createChat } from "./chat-ui.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
 import { noiseSuppression, setNoiseSuppression, suppressNoise } from "./noise.js";
 import { cameraEncoding, DEFAULT_SCREEN_PRESET, SCREEN_AUDIO_BITRATE, SCREEN_PRESETS, screenLayers } from "./media.mjs";
@@ -523,6 +524,7 @@ function layout() {
 function render() {
   const others = peers.filter((peer) => peer.id !== me?.id);
   $("people").textContent = peers.length === 1 ? "1 person here" : `${peers.length} people here`;
+  $("chat-count").textContent = peers.length ? `${peers.length} here` : "";
   const hosting = Boolean(peers.find((peer) => peer.id === me?.id)?.host);
   $("people-list").replaceChildren(
     ...peers.map((peer) => {
@@ -646,6 +648,10 @@ function connect(name) {
         for (const source of local.keys()) push(source);
         syncRemote();
       });
+    } else if (message.type === "chat") {
+      chat.receive(message.message, message.history);
+    } else if (message.type === "chat-slow") {
+      chat.slow();
     } else if (message.type === "peers") {
       peers = message.peers;
       render();
@@ -672,6 +678,7 @@ function connect(name) {
 
 function backToJoin(error) {
   leaving = true;
+  chat.reset();
   socket?.close(1000);
   socket = null;
   for (const source of local.keys()) stopLocal(source);
@@ -1060,6 +1067,17 @@ function enter(name) {
   preview.stop();
 }
 
+const chat = createChat({
+  post: ({ text, image }) => {
+    if (socket?.readyState !== WebSocket.OPEN) return false;
+    socket.send(JSON.stringify({ type: "chat", text, ...(image ? { image } : {}) }));
+    return true;
+  },
+  myId: () => me?.id,
+  avatarFor: (message) => botSvg(message.avatar ?? lookFor(message.from)),
+  toast,
+});
+
 $("name").value = localStorage.getItem(NAME_KEY) ?? "";
 const paintName = () => ($("preview-name").textContent = cleanName($("name").value) || "You");
 paintName();
@@ -1076,6 +1094,8 @@ if (!navigator.mediaDevices?.getDisplayMedia) $("screen").hidden = true;
 $("join-form").addEventListener("submit", join);
 $("join-avatar-button").addEventListener("click", customize);
 $("avatar").addEventListener("click", customize);
+$("avatar-item").addEventListener("click", () => (closeMenus(), customize()));
+$("effects-item").addEventListener("click", () => (closeMenus(), $("effects").click()));
 setUpEffects();
 showBot($("join-avatar"), myLook);
 $("camera").addEventListener("click", () => toggle("camera"));

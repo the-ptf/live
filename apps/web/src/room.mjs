@@ -12,6 +12,8 @@ const COLOR = /^#[0-9a-f]{6}$/i;
 const CLIENT = /^[a-z0-9]{16,40}$/;
 const OWNER_KEY = /^[a-z0-9]{32,64}$/;
 
+import { allowPost, cleanChat, HISTORY } from "./chat.mjs";
+
 async function sha256(text) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -76,7 +78,16 @@ function cleanAvatar(avatar) {
  * The host is whoever brings the room's key: the browser that made the room keeps it, and the first key a room hears
  * becomes its key. A removed browser is turned away by its client id, which a new private window doesn't share.
  */
-export function createRoom({ io, store, realtime, iceServers, onChange = () => {}, newPeerId = () => randomId(8), newToken = () => randomId(32) }) {
+export function createRoom({
+  io,
+  store,
+  realtime,
+  iceServers,
+  onChange = () => {},
+  newPeerId = () => randomId(8),
+  newToken = () => randomId(32),
+  now = () => Date.now(),
+}) {
   const peers = () => io.list().filter((entry) => entry.peer);
   const broadcast = (event = "change") => {
     const text = JSON.stringify({ type: "peers", peers: peers().map(({ peer }) => publicPeer(peer)) });
@@ -93,6 +104,21 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
         screenKbps: peer.tracks.find((track) => track.source === "screen")?.kbps ?? null,
       })),
     );
+  };
+  // Chat history: one key per message, `chat:<n>`, the newest at `chat:seq`, the last HISTORY kept.
+  const chatSeq = () => Number(store.get("chat:seq") ?? 0);
+  const chatHistory = () => {
+    const last = chatSeq();
+    const out = [];
+    for (let n = Math.max(1, last - HISTORY + 1); n <= last; n++) {
+      const saved = store.get(`chat:${n}`);
+      if (saved) out.push(saved);
+    }
+    return out;
+  };
+  const clearChat = () => {
+    const last = chatSeq();
+    for (let n = Math.max(1, last - HISTORY + 1); n <= last; n++) store.delete(`chat:${n}`);
   };
   const byToken = (token) => (typeof token === "string" && token ? peers().find(({ peer }) => peer.token === token) : undefined);
 
@@ -130,19 +156,37 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
       io.save(socket, peer);
       const ice = await iceServers().catch(() => FALLBACK_ICE);
       io.send(socket, JSON.stringify({ type: "welcome", id: peer.id, token: peer.token, iceServers: ice }));
+      for (const saved of chatHistory()) io.send(socket, `{"type":"chat","history":true,"message":${saved}}`);
       broadcast("join");
       return peer;
     },
 
     message(socket, data) {
       const entry = peers().find((item) => item.socket === socket);
-      if (!entry || typeof data !== "string" || data.length > 8192) return;
+      if (!entry || typeof data !== "string" || data.length > 400_000) return;
       let message;
       try {
         message = JSON.parse(data);
       } catch {
         return;
       }
+      if (message?.type === "chat") {
+        const clean = cleanChat(message);
+        if (!clean) return;
+        const at = now();
+        const rate = allowPost(entry.peer.chat, at);
+        io.save(socket, { ...entry.peer, chat: rate.times });
+        if (!rate.ok) return io.send(socket, JSON.stringify({ type: "chat-slow" }));
+        const n = chatSeq() + 1;
+        const saved = JSON.stringify({ id: n, from: entry.peer.id, name: entry.peer.name, avatar: entry.peer.avatar ?? null, at, ...clean });
+        store.put(`chat:${n}`, saved);
+        store.put("chat:seq", String(n));
+        if (n > HISTORY) store.delete(`chat:${n - HISTORY}`);
+        const text = `{"type":"chat","message":${saved}}`;
+        for (const { socket: other } of peers()) io.send(other, text);
+        return;
+      }
+      if (data.length > 8192) return;
       if (message?.type === "remove") {
         if (!entry.peer.host) return;
         const target = peers().find(({ peer }) => peer.id === message.id && !peer.host);
@@ -184,7 +228,9 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
     leave(socket) {
       const had = peers().some((entry) => entry.socket === socket);
       io.save(socket, null);
-      if (had) broadcast();
+      if (!had) return;
+      if (peers().length === 0) clearChat();
+      broadcast();
     },
 
     /** Forwards one call to Cloudflare Realtime for the peer holding `token`, only on its own session. */

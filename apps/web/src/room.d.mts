@@ -16,6 +16,7 @@ export interface Peer {
   client: string | null;
   deafened?: boolean;
   muted?: boolean;
+  chat?: number[];
 }
 export interface Avatar {
   shape: string;
@@ -36,6 +37,7 @@ export interface RoomIo<S> {
 export interface RoomStore {
   get(key: string): string | undefined;
   put(key: string, value: string): void;
+  delete(key: string): void;
 }
 export interface Answer {
   status: number;
@@ -58,4 +60,5 @@ export function createRoom<S>(options: {
   onChange?: (event: "join" | "change", peers: import("./stats.mjs").StatsPeer[]) => void;
   newPeerId?: () => string;
   newToken?: () => string;
+  now?: () => number;
 }): Room<S>;

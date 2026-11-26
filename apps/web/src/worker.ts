@@ -200,6 +200,7 @@ export class LiveRoom implements DurableObject {
       store: {
         get: (key) => this.state.storage.kv.get<string>(key),
         put: (key, value) => this.state.storage.kv.put(key, value),
+        delete: (key) => void this.state.storage.kv.delete(key),
       },
       realtime: (method, path, body) => this.realtime(method, path, body),
       iceServers: () => this.iceServers(),

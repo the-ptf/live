@@ -424,7 +424,302 @@
       .room {
         height: 100%;
         display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
         position: relative;
+      }
+      .room.chat-closed {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .room.chat-closed .chat {
+        display: none;
+      }
+      .room:not(.chat-closed) .dock {
+        left: calc((100% - 360px) / 2);
+      }
+      .room:not(.chat-closed) .tile.focused {
+        right: 372px;
+      }
+      .chat {
+        position: relative;
+        z-index: 3;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        background: var(--surface);
+        border-left: 1px solid var(--line);
+      }
+      .chat-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: max(12px, env(safe-area-inset-top)) 12px 12px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .chat-head b {
+        font-size: 15px;
+      }
+      .chat-muted {
+        color: var(--ink-3);
+        font-size: 12px;
+      }
+      .chat-icon {
+        width: 34px;
+        height: 34px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--ink-2);
+      }
+      .chat-icon:hover {
+        background: var(--hover);
+        color: var(--ink);
+      }
+      .chat-head .chat-icon {
+        margin-left: auto;
+      }
+      .chat-list {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 12px 12px 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .chat-list:empty::before {
+        content: "No messages yet. Paste a link, some code or a picture.";
+        margin: auto;
+        max-width: 220px;
+        text-align: center;
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .chat-msg {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 10px;
+      }
+      .chat-avatar,
+      .chat-avatar svg {
+        width: 30px;
+        height: 30px;
+      }
+      .chat-who {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .chat-who b {
+        font-size: 13px;
+      }
+      .chat-who span {
+        color: var(--ink-3);
+        font-size: 11px;
+      }
+      .chat-text {
+        margin-top: 2px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .chat-text a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .chat-text a:hover {
+        text-decoration: underline;
+      }
+      .chat-inline {
+        padding: 1px 4px;
+        border-radius: 4px;
+        background: var(--field);
+        font:
+          12.5px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .chat-code {
+        position: relative;
+        margin-top: 6px;
+        border-radius: 8px;
+        background: var(--field);
+        box-shadow: 0 0 0 1px var(--line);
+      }
+      .chat-code pre {
+        margin: 0;
+        padding: 10px 64px 10px 12px;
+        overflow-x: auto;
+        font:
+          12px/1.55 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .chat-copy {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        height: 24px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink-2);
+        font-size: 11px;
+        font-weight: 600;
+        box-shadow: 0 0 0 1px var(--line);
+      }
+      .chat-link {
+        margin-top: 6px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: var(--field);
+        display: grid;
+        gap: 1px;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .chat-link b {
+        font-size: 13px;
+      }
+      .chat-link span {
+        color: var(--ink-3);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .chat-image {
+        display: block;
+        margin-top: 6px;
+        max-width: min(100%, 260px);
+        max-height: 220px;
+        border-radius: 8px;
+        box-shadow: 0 0 0 1px var(--line);
+        cursor: zoom-in;
+      }
+      .chat-compose {
+        display: grid;
+        gap: 6px;
+        padding: 10px 12px max(12px, env(safe-area-inset-bottom));
+        border-top: 1px solid var(--line);
+      }
+      .chat-attachment {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .chat-attachment img {
+        height: 56px;
+        border-radius: 6px;
+        box-shadow: 0 0 0 1px var(--line);
+      }
+      .chat-remove {
+        height: 28px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--ink-2);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .chat-field {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        padding: 5px;
+        border-radius: 12px;
+        background: var(--field);
+        box-shadow: inset 0 0 0 1px var(--line-strong);
+      }
+      .chat-field:focus-within {
+        box-shadow: inset 0 0 0 1px var(--accent);
+      }
+      .chat-field textarea {
+        flex: 1;
+        min-width: 0;
+        height: 34px;
+        max-height: 140px;
+        resize: none;
+        border: 0;
+        outline: 0;
+        background: none;
+        color: var(--ink);
+        font: inherit;
+        line-height: 1.4;
+        padding: 7px 4px;
+      }
+      .chat-field textarea::placeholder {
+        color: var(--ink-3);
+      }
+      .chat-send {
+        width: 34px;
+        height: 34px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 9px;
+        background: var(--accent);
+        color: var(--on-ink);
+      }
+      .chat-hint {
+        color: var(--ink-3);
+        font-size: 11px;
+        padding: 0 4px;
+      }
+      .chat-toggle {
+        position: relative;
+      }
+      .chat-badge {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 8px;
+        background: var(--red-ink);
+        color: var(--on-red);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 16px;
+        text-align: center;
+      }
+      .chat-viewer {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgb(0 0 0 / 0.82);
+        cursor: zoom-out;
+      }
+      .chat-viewer img {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 8px;
+      }
+      @media (max-width: 720px) {
+        .room {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .chat {
+          position: absolute;
+          inset: 0;
+          z-index: 6;
+          border-left: 0;
+        }
+        .room:not(.chat-closed) .dock {
+          left: 50%;
+        }
+        .chat-hint {
+          display: none;
+        }
       }
       .status {
         position: absolute;
@@ -499,6 +794,34 @@
       #camera[aria-pressed="true"] .when-on,
       #camera .when-off {
         display: grid;
+      }
+      .narrow-only {
+        display: none !important;
+      }
+      @media (max-width: 560px) {
+        .dock {
+          gap: 6px;
+        }
+        .group {
+          padding: 4px;
+        }
+        .icon {
+          width: 38px;
+        }
+        .icon.chevron {
+          width: 22px;
+        }
+        #effects,
+        #avatar,
+        #screen-menu-button {
+          display: none;
+        }
+        .narrow-only {
+          display: flex !important;
+        }
+        .dock .hangup {
+          width: 52px;
+        }
       }
       .hangup {
         width: 64px;
@@ -1020,12 +1343,56 @@
       </div>
     </section>
 
-    <section class="room" id="room" hidden>
+    <section class="room chat-closed" id="room" hidden>
       <div class="status" id="status" role="status"></div>
       <main id="stage">
         <div class="area" id="screens" hidden></div>
         <div class="area" id="gallery"></div>
       </main>
+      <aside class="chat" id="chat" aria-label="Chat">
+        <div class="chat-head">
+          <b>Chat</b>
+          <span class="chat-muted" id="chat-count"></span>
+          <button class="chat-icon" id="chat-close" type="button" aria-label="Close chat" title="Close chat">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="chat-list" id="chat-list" aria-live="polite"></div>
+        <form class="chat-compose" id="chat-form">
+          <div class="chat-attachment" id="chat-attachment" hidden></div>
+          <div class="chat-field">
+            <button class="chat-icon" id="chat-attach" type="button" aria-label="Attach a picture" title="Attach a picture">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="9" cy="9" r="2" />
+                <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" />
+              </svg>
+            </button>
+            <input id="chat-file" type="file" accept="image/*" hidden />
+            <textarea id="chat-input" rows="1" maxlength="4000" placeholder="Message the room" aria-label="Message the room"></textarea>
+            <button class="chat-send" type="submit" aria-label="Send" title="Send">
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m22 2-7 20-4-9-9-4Z" />
+                <path d="M22 2 11 13" />
+              </svg>
+            </button>
+          </div>
+          <div class="chat-hint">Enter sends · Shift+Enter for a new line · ``` for code · paste pictures</div>
+        </form>
+      </aside>
+      <div class="chat-viewer" id="chat-viewer" hidden><img id="chat-viewer-image" alt="" /></div>
       <nav class="dock" aria-label="Call controls">
         <div class="group">
           <button class="icon" id="mic" type="button" aria-pressed="false" aria-label="Unmute" title="Unmute">
@@ -1236,6 +1603,22 @@
               <path d="M9 13v2" />
             </svg>
           </button>
+          <button class="icon chat-toggle" id="chat-button" type="button" aria-pressed="false" aria-label="Chat" title="Chat">
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span class="chat-badge" id="chat-badge" hidden></span>
+          </button>
           <button class="icon" id="more-button" type="button" aria-haspopup="menu" aria-label="More" title="More">
             <svg
               width="20"
@@ -1293,6 +1676,8 @@
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg
             ><span>Copy link</span>
           </button>
+          <button type="button" role="menuitem" class="narrow-only" id="effects-item"><span>Camera effects</span></button>
+          <button type="button" role="menuitem" class="narrow-only" id="avatar-item"><span>Your avatar</span></button>
           <div class="menu-line"></div>
           <div class="menu-label" id="people"></div>
           <div class="people-list" id="people-list"></div>

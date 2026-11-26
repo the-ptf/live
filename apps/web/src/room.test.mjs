@@ -17,7 +17,8 @@ function harness({ realtime } = {}) {
     },
   };
   const kv = new Map();
-  const store = { get: (key) => kv.get(key), put: (key, value) => kv.set(key, value) };
+  const store = { get: (key) => kv.get(key), put: (key, value) => kv.set(key, value), delete: (key) => kv.delete(key) };
+  let clock = 1_000_000;
   const room = createRoom({
     io,
     store,
@@ -30,6 +31,7 @@ function harness({ realtime } = {}) {
     },
     newPeerId: () => `peer000${next}`,
     newToken: () => `token${next++}`,
+    now: () => clock,
   });
   const join = async (name, credentials) => {
     const socket = { sent: [], peer: null, closed: null };
@@ -41,7 +43,8 @@ function harness({ realtime } = {}) {
     await room.sfu({ token: socket.peer.token, method: "POST", path: "sessions/new", body: null });
     return socket.peer.sessionId;
   };
-  return { room, sockets, calls, join, session };
+  const tick = (ms) => (clock += ms);
+  return { room, sockets, calls, join, session, kv, tick };
 }
 
 const offer = { type: "offer", sdp: "v=0" };
@@ -329,4 +332,58 @@ test("who is here shows names, bots and the host, without ids or tokens", async 
     { name: "Ana", avatar: { shape: "mug", color: "#1f7cf2", material: "flat" }, host: true },
     { name: "Bia", avatar: null, host: false },
   ]);
+});
+
+const chatOf = (socket) => socket.sent.filter((message) => message.type === "chat").map(({ message, history }) => ({ ...message, history: Boolean(history) }));
+
+test("a chat message reaches everyone in the room with its sender, and a late joiner gets the history", async () => {
+  const { room, join } = harness();
+  const ana = await join("Ana");
+  const bia = await join("Bia");
+  room.message(ana, JSON.stringify({ type: "chat", text: "  olha a linha 42 \u0007 " }));
+  assert.deepEqual(
+    chatOf(bia).map(({ name, text, image }) => [name, text, image]),
+    [["Ana", "olha a linha 42", null]],
+  );
+  assert.equal(chatOf(ana).length, 1);
+  const cris = await join("Cris");
+  assert.deepEqual(
+    chatOf(cris).map(({ text, history }) => [text, history]),
+    [["olha a linha 42", true]],
+  );
+});
+
+test("chat drops empty, oversized and non-image payloads, and slows down a flood", async () => {
+  const { room, join, tick } = harness();
+  const ana = await join("Ana");
+  room.message(ana, JSON.stringify({ type: "chat", text: "   " }));
+  room.message(ana, JSON.stringify({ type: "chat", text: "x".repeat(4001) }));
+  room.message(ana, JSON.stringify({ type: "chat", image: "javascript:alert(1)" }));
+  room.message(ana, JSON.stringify({ type: "chat", image: "data:image/png;base64,iVBORw0KGgo=" }));
+  assert.deepEqual(
+    chatOf(ana).map(({ text, image }) => [text, Boolean(image)]),
+    [["", true]],
+  );
+  for (let i = 0; i < 8; i++) room.message(ana, JSON.stringify({ type: "chat", text: `spam ${i}` }));
+  assert.equal(chatOf(ana).length, 6);
+  assert.ok(ana.sent.some((message) => message.type === "chat-slow"));
+  tick(11_000);
+  room.message(ana, JSON.stringify({ type: "chat", text: "de novo" }));
+  assert.equal(chatOf(ana).at(-1).text, "de novo");
+});
+
+test("the room keeps the last 50 messages and forgets them when everyone leaves", async () => {
+  const { room, join, kv, tick } = harness();
+  const ana = await join("Ana");
+  for (let i = 1; i <= 55; i++) {
+    room.message(ana, JSON.stringify({ type: "chat", text: `m${i}` }));
+    tick(2_000);
+  }
+  const bia = await join("Bia");
+  const history = chatOf(bia);
+  assert.equal(history.length, 50);
+  assert.equal(history[0].text, "m6");
+  room.leave(ana);
+  room.leave(bia);
+  assert.equal([...kv.keys()].filter((key) => /^chat:\d+$/.test(key)).length, 0);
 });

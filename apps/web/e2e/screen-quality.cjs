@@ -31,7 +31,9 @@ const sending = (p) =>
       .getSenders()
       .find((item) => item.track?.kind === "video");
     const parameters = sender.getParameters();
-    const layers = parameters.encodings.map((encoding) => `${encoding.rid ?? "-"} ${encoding.maxBitrate / 1e6} Mbps ${encoding.maxFramerate} fps /${encoding.scaleResolutionDownBy ?? 1}`);
+    const layers = parameters.encodings.map(
+      (encoding) => `${encoding.rid ?? "-"} ${encoding.maxBitrate / 1e6} Mbps ${encoding.maxFramerate} fps /${encoding.scaleResolutionDownBy ?? 1}`,
+    );
     return `${layers.join(" | ")}, ${parameters.degradationPreference}, hint ${sender.track.contentHint}`;
   });
 // What Bia actually gets, from WebRTC stats. Headless Chrome's fake screen draws about 20 frames a second whatever it
