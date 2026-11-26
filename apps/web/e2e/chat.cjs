@@ -24,7 +24,10 @@ const PICTURE = process.env.CHAT_PICTURE ?? "/tmp/live-chat-fixture/pic.png";
     await p.type("#name", name);
     await p.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
     await p.click("#join-button");
-    await p.waitForFunction(() => document.getElementById("join").hidden && /here/.test(document.getElementById("people").textContent), { timeout: 20000 });
+    await p.waitForFunction(
+      () => document.getElementById("join").hidden && /^[1-9]\d* (person|people) here/.test(document.getElementById("people").textContent),
+      { timeout: 20000 },
+    );
     return p;
   };
   const ana = await join("Ana", `${BASE}/start`);
@@ -70,6 +73,7 @@ const PICTURE = process.env.CHAT_PICTURE ?? "/tmp/live-chat-fixture/pic.png";
   await phone.type("#name", "Duda");
   await phone.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await phone.click("#join-button");
+  await phone.waitForFunction(() => /^[1-9]\d* (person|people) here/.test(document.getElementById("people").textContent), { timeout: 20000 });
   await phone.waitForFunction(() => document.getElementById("chat-badge").hidden && document.querySelectorAll("#chat-list .chat-msg").length === 3, {
     timeout: 15000,
   });
