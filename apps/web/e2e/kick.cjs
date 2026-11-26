@@ -27,7 +27,7 @@ const ready = (p) =>
   const anaCtx = await browser.createBrowserContext();
   const biaCtx = await browser.createBrowserContext();
   const ana = await page(anaCtx, "Ana");
-  await ana.goto(BASE + "/");
+  await ana.goto(BASE + "/start");
   await ana.type("#name", "Ana");
   await ana.click("#join-button");
   await ready(ana);

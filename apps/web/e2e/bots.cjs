@@ -38,7 +38,7 @@ const moves = (p, selector) =>
   });
   const page = await (await browser.createBrowserContext()).newPage();
   page.on("pageerror", (e) => console.log("pageerror", e.message));
-  await page.goto(BASE + "/");
+  await page.goto(BASE + "/start");
   await page.type("#name", "Ana");
   await page.click("#join-button");
   await ready(page);

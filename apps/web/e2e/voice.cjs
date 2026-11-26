@@ -52,7 +52,7 @@ const cameraEncoding = (p) =>
     await ready(p);
     return p;
   };
-  const ana = await join("Ana", BASE + "/");
+  const ana = await join("Ana", BASE + "/start");
   await ana.click("#mic");
   await ana.click("#camera");
   const bia = await join("Bia", ana.url());

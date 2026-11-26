@@ -1,4 +1,12 @@
 import page from "./page.html";
+import landing from "./landing.html";
+import iconSvg from "./brand/icon.svg";
+import icon192 from "./brand/icon-192.png";
+import icon512 from "./brand/icon-512.png";
+import appleTouchIcon from "./brand/apple-touch-icon.png";
+import ogImage from "./brand/og.png";
+import geist from "../dist/geist.bin";
+import instrumentSerif from "../dist/instrument-serif-italic.bin";
 import script from "../dist/app.txt";
 import rnnoiseWorklet from "../dist/rnnoise-worklet.txt";
 import rnnoise from "../dist/rnnoise.bin";
@@ -29,14 +37,45 @@ const SECURITY_HEADERS = {
   "permissions-policy": "camera=(self), display-capture=(self), microphone=(self)",
 };
 const CSP =
-  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
-/** RNNoise for the mic's noise suppression: an AudioWorklet loads by URL, and its wasm comes with it. */
-const NOISE_FILES: Record<string, { body: string | ArrayBuffer; type: string }> = {
+const MANIFEST = JSON.stringify({
+  name: "Milagre Live",
+  short_name: "Live",
+  description: "Share your game or your code, live, with one link.",
+  start_url: "/start",
+  display: "standalone",
+  background_color: "#141a3d",
+  theme_color: "#141a3d",
+  icons: [
+    { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
+  ],
+});
+
+/**
+ * Files served as they are: RNNoise for the mic's noise suppression (an AudioWorklet loads by URL, with its wasm), the
+ * icons and link preview, and the landing page's fonts.
+ */
+const STATIC_FILES: Record<string, { body: string | ArrayBuffer; type: string }> = {
   "/noise/rnnoise-worklet.js": { body: rnnoiseWorklet, type: "text/javascript; charset=utf-8" },
   "/noise/rnnoise.wasm": { body: rnnoise, type: "application/wasm" },
   "/noise/rnnoise_simd.wasm": { body: rnnoiseSimd, type: "application/wasm" },
+  "/icon.svg": { body: iconSvg, type: "image/svg+xml" },
+  "/icon-192.png": { body: icon192, type: "image/png" },
+  "/icon-512.png": { body: icon512, type: "image/png" },
+  "/apple-touch-icon.png": { body: appleTouchIcon, type: "image/png" },
+  "/og.png": { body: ogImage, type: "image/png" },
+  "/manifest.webmanifest": { body: MANIFEST, type: "application/manifest+json" },
+  "/fonts/geist.woff2": { body: geist, type: "font/woff2" },
+  "/fonts/instrument-serif-italic.woff2": { body: instrumentSerif, type: "font/woff2" },
 };
+
+const LANDING_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+// The landing page is the one page search engines may list; rooms, the stats and the API stay out.
+const ROBOTS = "User-agent: *\nAllow: /$\nDisallow: /r/\nDisallow: /start\nDisallow: /dash\nDisallow: /api/\n";
 
 const DASH_CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
 const STATS_URL = "https://stats.internal";
@@ -90,17 +129,26 @@ export default {
     const { pathname } = url;
     if (pathname === "/health") return new Response("ok");
     const roomPage = pathname.startsWith("/r/") && ROOM_ID.test(pathname.slice(3));
-    if (request.method === "GET" && (pathname === "/" || roomPage))
+    if (request.method === "GET" && pathname === "/")
+      return new Response(landing, {
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "public, max-age=300",
+          "content-security-policy": LANDING_CSP,
+          ...SECURITY_HEADERS,
+        },
+      });
+    if (request.method === "GET" && (pathname === "/start" || roomPage))
       return new Response(page, {
         headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", "content-security-policy": CSP, ...SECURITY_HEADERS },
       });
     if (request.method === "GET" && pathname === "/app.js")
       return new Response(script, { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache", ...SECURITY_HEADERS } });
-    const noise = NOISE_FILES[pathname];
-    if (request.method === "GET" && noise)
-      return new Response(noise.body, { headers: { "content-type": noise.type, "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
+    const file = STATIC_FILES[pathname];
+    if (request.method === "GET" && file)
+      return new Response(file.body, { headers: { "content-type": file.type, "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
     if (pathname === "/dash" || pathname.startsWith("/dash/")) return dash(request, env, pathname);
-    if (pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "content-type": "text/plain" } });
+    if (pathname === "/robots.txt") return new Response(ROBOTS, { headers: { "content-type": "text/plain" } });
     const match = API.exec(pathname);
     if (!match) return new Response("Not found", { status: 404 });
     if (!allowedOrigin(request, env)) return json({ error: "bad-origin" }, 403);

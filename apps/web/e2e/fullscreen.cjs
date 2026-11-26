@@ -48,7 +48,7 @@ const framesPerSecond = (p) =>
     await ready(p);
     return p;
   };
-  const ana = await join("Ana", BASE + "/");
+  const ana = await join("Ana", BASE + "/start");
   await ana.click("#camera");
   const bia = await join("Bia", ana.url());
   await bia.waitForFunction((selector) => [...document.querySelectorAll(selector)].some((video) => video.videoWidth > 0), { timeout: 20000 }, ANA);

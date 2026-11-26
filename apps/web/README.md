@@ -5,9 +5,12 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
 
 ## How it works
 
-- `GET /` and `GET /r/<room>` serve one page (`src/page.html`, plus `src/client.js` bundled by `build.mjs` into
-  `dist/app.txt`, which wrangler runs before `dev` and `deploy`). Starting a room makes a random `xxxx-xxxx-xxxx` id in
-  the browser.
+- `GET /` is the landing page (`src/landing.html`): no script, Geist and Instrument Serif served from `/fonts/`, its
+  own CSP, and the only page `robots.txt` lets search engines list. `GET /start` and `GET /r/<room>` serve the call
+  (`src/page.html`, plus `src/client.js` bundled by `build.mjs` into `dist/app.txt`, which wrangler runs before `dev`
+  and `deploy`). Starting a room makes a random `xxxx-xxxx-xxxx` id in the browser.
+- The icon is `src/brand/icon.svg`; `node scripts/brand.cjs` renders `icon-192.png`, `icon-512.png`,
+  `apple-touch-icon.png` and the link preview `og.png` from it. The Worker serves them with `/manifest.webmanifest`.
 - Everyone gets a tile, laid out at the largest 16:9 size where all of them fit; a shared screen takes the stage and the
   people move to a column. Controls sit in one floating dock: camera (and which camera), screen, effects, avatar, a menu
   with the link and who's here, and leave.

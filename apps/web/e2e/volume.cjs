@@ -45,7 +45,7 @@ const volumes = (p) => p.$$eval("#voices audio", (audios) => audios.map((audio) 
   const tone = await anaContext.newPage();
   await tone.goto("data:text/html,<title>Tone</title><body>tone</body>");
   const ana = await anaContext.newPage();
-  await ana.goto(BASE + "/");
+  await ana.goto(BASE + "/start");
   await ana.type("#name", "Ana");
   await ana.click("#join-button");
   await ready(ana);

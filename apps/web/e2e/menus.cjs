@@ -15,7 +15,7 @@ fs.mkdirSync(OUT, { recursive: true });
   });
   const p = await browser.newPage();
   p.on("pageerror", (e) => console.log("pageerror", e.message));
-  await p.goto(BASE + "/");
+  await p.goto(BASE + "/start");
   await p.type("#name", "Ana");
   await p.click("#join-button");
   await p.waitForFunction(

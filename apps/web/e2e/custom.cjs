@@ -21,7 +21,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     return p;
   };
   const a = await open("Ana");
-  await a.goto(BASE + "/");
+  await a.goto(BASE + "/start");
   await a.click("#join-avatar-button");
   await a.waitForSelector("#picker[open]");
   await a.click('[data-material="fluffy"]');

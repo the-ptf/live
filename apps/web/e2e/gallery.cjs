@@ -32,7 +32,7 @@ const live = (p) =>
     await live(p);
     return p;
   };
-  const host = await page("tianxu", BASE + "/");
+  const host = await page("tianxu", BASE + "/start");
   const room = host.url();
   await host.click("#camera");
   const names = ["Teysão", "Naná", "Tião", "eimarquin", "Natan"];

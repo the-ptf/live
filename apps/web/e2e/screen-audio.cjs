@@ -43,7 +43,7 @@ const ready = (p) =>
   });
   const ana = await anaContext.newPage();
   ana.on("pageerror", (e) => console.log("pageerror Ana", e.message));
-  await ana.goto(BASE + "/");
+  await ana.goto(BASE + "/start");
   await ana.type("#name", "Ana");
   await ana.click("#join-button");
   await ready(ana);

@@ -2,7 +2,8 @@ import { build } from "esbuild";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 
-// RNNoise's worklet and wasm are served as files (an AudioWorklet loads by URL), so they are copied next to the bundle.
+// RNNoise's worklet and wasm (an AudioWorklet loads by URL) and the landing page's fonts are served as files, so they are
+// copied next to the bundle.
 const require = createRequire(import.meta.url);
 const dist = new URL("./dist/", import.meta.url).pathname;
 mkdirSync(dist, { recursive: true });
@@ -10,6 +11,8 @@ for (const [from, to] of [
   ["@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js", "rnnoise-worklet.txt"],
   ["@sapphi-red/web-noise-suppressor/rnnoise.wasm", "rnnoise.bin"],
   ["@sapphi-red/web-noise-suppressor/rnnoise_simd.wasm", "rnnoise_simd.bin"],
+  ["@fontsource-variable/geist/files/geist-latin-wght-normal.woff2", "geist.bin"],
+  ["@fontsource/instrument-serif/files/instrument-serif-latin-400-italic.woff2", "instrument-serif-italic.bin"],
 ])
   copyFileSync(require.resolve(from), dist + to);
 

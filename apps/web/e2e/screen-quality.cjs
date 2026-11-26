@@ -73,7 +73,7 @@ const pick = async (p, selector) => {
     await ready(p);
     return p;
   };
-  const ana = await join("Ana", BASE + "/");
+  const ana = await join("Ana", BASE + "/start");
   await ana.evaluate(() => document.getElementById("screen").click());
   await ana.waitForFunction(
     () =>

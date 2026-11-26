@@ -43,7 +43,7 @@ const videos = () =>
   });
   const a = await (await browser.createBrowserContext()).newPage();
   const b = await (await browser.createBrowserContext()).newPage();
-  await a.goto(BASE + "/");
+  await a.goto(BASE + "/start");
   await a.type("#name", "Ana");
   await a.click("#join-button");
   await until(

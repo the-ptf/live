@@ -3,10 +3,10 @@
 Talk, share your screen or turn on your camera with anyone who has a link, on Cloudflare Realtime. Live at
 [live.milagre.cloud](https://live.milagre.cloud).
 
-| Path        | What                                                                                                                           |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `apps/web`  | The Cloudflare Worker behind live.milagre.cloud: the page, rooms, the Realtime proxy and `/dash`. [README](apps/web/README.md) |
-| `packages/` | Code shared between apps, once there are two.                                                                                  |
+| Path        | What                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/web`  | The Cloudflare Worker behind live.milagre.cloud: the landing page, the call, rooms, the Realtime proxy and `/dash`. [README](apps/web/README.md) |
+| `packages/` | Code shared between apps, once there are two.                                                                                                    |
 
 ```sh
 npm install
@@ -20,4 +20,4 @@ npm run e2e        # real headless browsers against LIVE_URL (default http://loc
 ```
 
 Node 22 or later. MIT licensed; `apps/web/src/bots.json` holds Open Bot Avatar's gallery under its own MIT notice, and RNNoise comes from
-`@sapphi-red/web-noise-suppressor` (MIT).
+`@sapphi-red/web-noise-suppressor` (MIT). The landing page's fonts, Geist and Instrument Serif, are under the SIL Open Font License.
