@@ -1,4 +1,4 @@
-import { FREE_GB_PER_MONTH, forecastOf } from "./usage.mjs";
+import { FREE_GB_PER_MONTH, USD_PER_GB, forecastOf } from "./usage.mjs";
 
 const COOKIE = "live_dash";
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -69,6 +69,11 @@ input{font:inherit;color:var(--ink);height:36px;padding:0 12px;border-radius:8px
 .grid line{stroke:var(--line);stroke-width:1}
 .plot .free{position:absolute;right:0;transform:translateY(-120%);color:var(--red);font-size:11px;font-weight:600}
 .wide{grid-column:1/-1}
+.hits{position:absolute;top:0;bottom:0;display:flex}.hits i{flex:1;position:relative}
+.hits i:hover{background:rgba(255,255,255,.045)}
+.hits.points i:hover{background:none}.hits.points i:hover::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed var(--ink-3)}
+.hits i:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);white-space:pre;background:#0b1320;box-shadow:0 0 0 1px var(--line),0 8px 24px rgba(0,0,0,.35);padding:6px 9px;border-radius:8px;font-size:12px;font-style:normal;line-height:1.45;color:var(--ink);z-index:2;pointer-events:none}
+.hits i.l:hover::after{left:0;transform:none}.hits i.r:hover::after{left:auto;right:0;transform:none}
 @media(max-width:640px){.hide-small{display:none}}
 `;
 
@@ -93,14 +98,26 @@ function round(value) {
   return value >= 1 ? value.toFixed(1) : value.toFixed(2);
 }
 
-function frame(max, inner) {
+/**
+ * Hover targets over a plot, one per value, each showing its tip: bars split the width evenly, points sit centred on
+ * each x so the first and last stick out half a column past the edges.
+ */
+function hits(tips, kind = "bars") {
+  const half = kind === "points" && tips.length > 1 ? 50 / (tips.length - 1) : 0;
+  const side = (index) => (index < tips.length * 0.15 ? ' class="l"' : index >= tips.length * 0.85 ? ' class="r"' : "");
+  return `<div class="hits ${kind}" style="left:${-half}%;right:${-half}%">${tips.map((tip, index) => `<i${side(index)} data-tip="${escape(tip)}"></i>`).join("")}</div>`;
+}
+
+function frame(max, inner, over = "") {
   const ticks = [0, 0.5, 1];
   const grid = ticks.map((tick) => `<line x1="0" x2="100" y1="${100 - tick * 100}" y2="${100 - tick * 100}" vector-effect="non-scaling-stroke"/>`).join("");
   const labels = ticks.map((tick) => `<span class="y" style="top:${100 - tick * 100}%">${round(max * tick)}</span>`).join("");
-  return `<div class="plot">${labels}<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><g class="grid">${grid}</g>${inner}</svg></div>`;
+  return `<div class="plot">${labels}<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><g class="grid">${grid}</g>${inner}</svg>${over}</div>`;
 }
 
 /** Lines over the last 24 hours, the first one filled. */
+const clock = (ms) => new Date(ms).toISOString().slice(11, 16);
+
 function lineChart(points, series) {
   const max = niceMax(Math.max(...series.flatMap(({ key }) => points.map((point) => point[key]))));
   const x = (index) => (index / Math.max(points.length - 1, 1)) * 100;
@@ -112,10 +129,13 @@ function lineChart(points, series) {
       return index ? line : `<path d="${path(key)}L100,100L0,100Z" fill="${color}" fill-opacity="0.16"/>${line}`;
     })
     .join("");
-  return `${frame(max, shapes)}<div class="x"><span>24 h ago</span><span>18 h</span><span>12 h</span><span>6 h</span><span>now</span></div>`;
+  const tips = points.map((point) => [`${clock(point.at)} UTC`, ...series.map(({ key, label }) => `${label} ${point[key]}`)].join("\n"));
+  return `${frame(max, shapes, hits(tips, "points"))}<div class="x"><span>24 h ago</span><span>18 h</span><span>12 h</span><span>6 h</span><span>now</span></div>`;
 }
 
-function barChart(days, key, color) {
+const shortDate = (date) => `${Number(date.slice(8))}/${Number(date.slice(5, 7))}`;
+
+function barChart(days, key, color, tip = (value) => String(value)) {
   const max = niceMax(Math.max(...days.map((day) => day[key])));
   const width = 100 / days.length;
   const bars = days
@@ -124,8 +144,8 @@ function barChart(days, key, color) {
       return `<rect x="${(index * width + width * 0.15).toFixed(2)}" y="${(100 - height).toFixed(2)}" width="${(width * 0.7).toFixed(2)}" height="${height.toFixed(2)}" rx="0.6" fill="${color}" fill-opacity="${index === days.length - 1 ? 1 : 0.75}"/>`;
     })
     .join("");
-  const label = (date) => `${Number(date.slice(8))}/${Number(date.slice(5, 7))}`;
-  return `${frame(max, bars)}<div class="x"><span>${label(days[0].date)}</span><span>${label(days[Math.floor(days.length / 2)].date)}</span><span>today</span></div>`;
+  const tips = days.map((day) => `${shortDate(day.date)}\n${tip(day[key])}`);
+  return `${frame(max, bars, hits(tips))}<div class="x"><span>${shortDate(days[0].date)}</span><span>${shortDate(days[Math.floor(days.length / 2)].date)}</span><span>today</span></div>`;
 }
 
 const legend = (items) =>
@@ -142,10 +162,19 @@ const gbText = (value) => `${round(value)} GB`;
 /** Cloudflare's real video per day when the analytics token is set; the page's own upper bound otherwise. */
 function videoChart(snapshot) {
   const real = snapshot.usage?.days;
-  if (!real?.length) return chartCard("Video per day", '<span class="muted">GB, at most</span>', barChart(snapshot.days, "gb", PURPLE));
+  if (!real?.length)
+    return chartCard(
+      "Video per day",
+      '<span class="muted">GB, at most</span>',
+      barChart(snapshot.days, "gb", PURPLE, (gb) => `${gbText(gb)} at most`),
+    );
   const byDate = new Map(real.map((day) => [day.date, day.bytes / 1e9]));
   const days = snapshot.days.map((day) => ({ ...day, sent: byDate.get(day.date) ?? 0 }));
-  return chartCard("Video per day", '<span class="muted">GB sent, from Cloudflare</span>', barChart(days, "sent", PURPLE));
+  return chartCard(
+    "Video per day",
+    '<span class="muted">GB sent, from Cloudflare</span>',
+    barChart(days, "sent", PURPLE, (gb) => `${gbText(gb)} sent`),
+  );
 }
 
 /** What Realtime has cost: Cloudflare's own numbers when the analytics token is set, else the page's estimate. */
@@ -165,8 +194,6 @@ function costCards(snapshot) {
 <div class="cards">${card(usd(current.cost), "This month")}${card(usd(usage.cost.totalCost), since ? `So far, since ${since}` : "So far")}${card(gbText(current.gb), "Video sent this month")}${card(gbText(current.freeLeftGb), "Free left this month, of 1,000 GB")}${card(usd(forecastOf(usage.days, new Date().toISOString().slice(0, 10)).projectedCost), "Month end, at this pace")}${card(gbText(turn), "Relayed by TURN, free")}</div>`;
 }
 
-const shortDate = (date) => `${Number(date.slice(8))}/${Number(date.slice(5, 7))}`;
-
 /** This month's video so far and, dashed, where it ends if the last week's pace holds, against the free 1,000 GB. */
 function forecastChart(snapshot, now) {
   const days = snapshot.usage?.days;
@@ -183,7 +210,15 @@ function forecastChart(snapshot, now) {
 <path d="${line}" fill="none" stroke="${PURPLE}" ${stroke}/>
 <path d="M${x(dayOfMonth).toFixed(2)},${y(soFarGb).toFixed(2)}L100,${y(projectedGb).toFixed(2)}" fill="none" stroke="${PURPLE}" stroke-opacity="0.7" stroke-dasharray="5 4" ${stroke}/>
 ${showFree ? `<line x1="0" x2="100" y1="${y(FREE_GB_PER_MONTH).toFixed(2)}" y2="${y(FREE_GB_PER_MONTH).toFixed(2)}" stroke="var(--red)" stroke-dasharray="2 3" ${stroke}/>` : ""}`;
-  const plot = frame(max, shapes).replace("</div>", showFree ? `<span class="free" style="top:${y(FREE_GB_PER_MONTH)}%">Free 1,000 GB</span></div>` : "</div>");
+  const tips = Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1;
+    const date = `${shortDate(`${month}-${String(day).padStart(2, "0")}`)}`;
+    if (day <= dayOfMonth) return `${date}\nSent ${gbText(sent[index])} so far`;
+    const gb = soFarGb + forecast.perDay * (day - dayOfMonth);
+    return `${date}\nAt this pace ${gbText(gb)}${gb > FREE_GB_PER_MONTH ? `, ${usd((gb - FREE_GB_PER_MONTH) * USD_PER_GB)}` : ""}`;
+  });
+  const free = showFree ? `<span class="free" style="top:${y(FREE_GB_PER_MONTH)}%">Free 1,000 GB</span>` : "";
+  const plot = frame(max, shapes, `${free}${hits(tips, "points")}`);
   const pace = forecast.basedOnDays
     ? `${gbText(forecast.perDay)} a day, last ${forecast.basedOnDays} day${forecast.basedOnDays > 1 ? "s" : ""}`
     : `${gbText(forecast.perDay)} today so far`;
@@ -213,13 +248,21 @@ function charts(snapshot, now) {
       ["Rooms", GREEN],
     ]),
     lineChart(snapshot.day24, [
-      { key: "people", color: BLUE },
-      { key: "rooms", color: GREEN },
+      { key: "people", color: BLUE, label: "People" },
+      { key: "rooms", color: GREEN, label: "Rooms" },
     ]),
   )}
-${chartCard("Joins per day", '<span class="muted">last 14 days, UTC</span>', barChart(snapshot.days, "joins", BLUE))}
+${chartCard(
+  "Joins per day",
+  '<span class="muted">last 14 days, UTC</span>',
+  barChart(snapshot.days, "joins", BLUE, (joins) => `${joins} join${joins === 1 ? "" : "s"}`),
+)}
 ${videoChart(snapshot)}
-${chartCard("Most people at once", '<span class="muted">per day</span>', barChart(snapshot.days, "peak", GREEN))}</div>`;
+${chartCard(
+  "Most people at once",
+  '<span class="muted">per day</span>',
+  barChart(snapshot.days, "peak", GREEN, (peak) => `${peak} at once`),
+)}</div>`;
 }
 
 const ago = (ms) => {
