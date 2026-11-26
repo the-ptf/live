@@ -42,6 +42,7 @@ export interface Answer {
   body: unknown;
 }
 export interface Room<S> {
+  who(): { name: string; avatar: { shape: string; color: string; material: string } | null; host: boolean }[];
   refusal(name: unknown, client?: string | null): { status: number; error: string } | null;
   join(socket: S, name: string, credentials?: { client?: string | null; ownerKey?: string | null }): Promise<Peer>;
   message(socket: S, data: unknown): void;

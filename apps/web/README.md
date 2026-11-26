@@ -57,6 +57,11 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   the key's SHA-256 from the first join that brings one, and the same browser is host again when it comes back. The
   host removes people (two clicks, on the tile or in the ··· list); the room closes their socket with 4403 and turns
   away that browser's client id from then on. A new private window has a new id, so removal is a door, not a lock.
+- The join screen is a check before going in: the camera as the room will see it, the mic's level, and toggles for
+  which of the two to bring (mic on and camera off unless changed; the choice is kept in `milagre-live:join-media`).
+  The tracks it opened go into the room as they are, so nobody is asked twice (`preview.js`). The mic only opens on its
+  own when the browser already allows it. In a room, it shows who's here and whose room it is from
+  `POST /api/rooms/<room>/who` (names, bots, host; no ids or tokens), checked every 8 seconds.
 - `/dash` is the owner's stats: rooms open, people live, cameras, screens, an upper bound on video GB/hour, and the
   day's joins, rooms started and peak. Each room reports its roster on every change to one `LiveStats` Durable Object;
   a room silent for 12 hours drops off. The page signs in with the `DASH_PASSWORD` secret and keeps a 30-day HttpOnly

@@ -47,6 +47,7 @@ const volumes = (p) => p.$$eval("#voices audio", (audios) => audios.map((audio) 
   const ana = await anaContext.newPage();
   await ana.goto(BASE + "/start");
   await ana.type("#name", "Ana");
+  await ana.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await ana.click("#join-button");
   await ready(ana);
   await ana.click("#mic");
@@ -57,6 +58,7 @@ const volumes = (p) => p.$$eval("#voices audio", (audios) => audios.map((audio) 
     bia.on("pageerror", (e) => console.log("pageerror Bia", e.message));
     await bia.goto(ana.url());
     await bia.type("#name", "Bia");
+    await bia.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
     await bia.click("#join-button");
     await ready(bia);
     await bia.waitForFunction(() => document.querySelectorAll("#voices audio").length === 2, { timeout: 20000 });

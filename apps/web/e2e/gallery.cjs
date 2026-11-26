@@ -28,6 +28,7 @@ const live = (p) =>
     p.on("pageerror", (e) => console.log("pageerror", name, e.message));
     await p.goto(url);
     await p.type("#name", name);
+    await p.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
     await p.click("#join-button");
     await live(p);
     return p;

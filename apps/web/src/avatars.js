@@ -30,6 +30,12 @@ export function lookFor(seed) {
   return { shape: BOTS[hash % BOTS.length].id, color: COLORS[(hash >>> 8) % COLORS.length], material: "flat" };
 }
 
+/** A still picture of a bot, for small places like the join screen's who's here row. */
+export function botSvg(look) {
+  const safe = isLook(look) ? look : lookFor(String(look?.shape));
+  return renderAvatarSvg(BOT_BY_ID.get(safe.shape), { color: safe.color, mood: "happy" });
+}
+
 export function loadLook() {
   try {
     const look = JSON.parse(localStorage.getItem(LOOK_KEY) ?? "null");

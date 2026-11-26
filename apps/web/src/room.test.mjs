@@ -319,3 +319,14 @@ test("a screen share's bitrate rides along with its track, within bounds", async
   publish(999_999);
   assert.equal(bia.sent.at(-1).peers.find((peer) => peer.name === "Ana").tracks[0].kbps, undefined);
 });
+
+test("who is here shows names, bots and the host, without ids or tokens", async () => {
+  const { room, join } = harness();
+  const ana = await join("Ana", { ownerKey: "k".repeat(40) });
+  await join("Bia");
+  room.message(ana, JSON.stringify({ type: "avatar", avatar: { shape: "mug", color: "#1F7CF2", material: "flat" } }));
+  assert.deepEqual(room.who(), [
+    { name: "Ana", avatar: { shape: "mug", color: "#1f7cf2", material: "flat" }, host: true },
+    { name: "Bia", avatar: null, host: false },
+  ]);
+});

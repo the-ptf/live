@@ -32,7 +32,7 @@ interface Env {
 
 const REALTIME = "https://rtc.live.cloudflare.com/v1";
 const INTERNAL = "https://room.internal";
-const API = /^\/api\/rooms\/([a-z]{4}-[a-z]{4}-[a-z]{4})\/(ws|ice|sfu\/.+)$/;
+const API = /^\/api\/rooms\/([a-z]{4}-[a-z]{4}-[a-z]{4})\/(ws|ice|who|sfu\/.+)$/;
 
 const SECURITY_HEADERS = {
   "x-content-type-options": "nosniff",
@@ -40,7 +40,7 @@ const SECURITY_HEADERS = {
   "permissions-policy": "camera=(self), display-capture=(self), microphone=(self)",
 };
 const CSP =
-  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
 const MANIFEST = JSON.stringify({
   name: "Milagre Live",
@@ -237,6 +237,7 @@ export class LiveRoom implements DurableObject {
       return new Response(null, { status: 101, webSocket: client });
     }
     if (url.pathname === "/ice") return reply(await this.room.ice(token));
+    if (url.pathname === "/who") return request.method === "POST" ? json({ people: this.room.who() }) : json({ error: "expected-post" }, 405);
     const path = url.pathname.slice("/sfu/".length);
     const body = request.method === "GET" ? null : await request.text();
     return reply(await this.room.sfu({ token, method: request.method, path, body }));

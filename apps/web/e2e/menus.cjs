@@ -17,6 +17,7 @@ fs.mkdirSync(OUT, { recursive: true });
   p.on("pageerror", (e) => console.log("pageerror", e.message));
   await p.goto(BASE + "/start");
   await p.type("#name", "Ana");
+  await p.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await p.click("#join-button");
   await p.waitForFunction(
     () => document.getElementById("people").textContent.includes("here") && !/Connecting/.test(document.getElementById("status").textContent),

@@ -29,12 +29,14 @@ const ready = (p) =>
   const ana = await page(anaCtx, "Ana");
   await ana.goto(BASE + "/start");
   await ana.type("#name", "Ana");
+  await ana.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await ana.click("#join-button");
   await ready(ana);
   const room = ana.url();
   const bia = await page(biaCtx, "Bia");
   await bia.goto(room);
   await bia.type("#name", "Bia");
+  await bia.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await bia.click("#join-button");
   await ready(bia);
   await ana.waitForFunction(() => document.getElementById("people").textContent === "2 people here");
@@ -52,12 +54,14 @@ const ready = (p) =>
   console.log("Bia sees:", await bia.$eval("#join-error", (e) => e.textContent));
   await ana.waitForFunction(() => document.getElementById("people").textContent === "1 person here", { timeout: 10000 });
   console.log("Ana roster after:", await ana.$eval("#people", (e) => e.textContent));
+  await bia.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await bia.click("#join-button");
   await sleep(2500);
   console.log("Bia rejoin blocked:", await bia.$eval("#join-error", (e) => e.textContent), "| join visible:", await bia.$eval("#join", (e) => !e.hidden));
   const cris = await page(await browser.createBrowserContext(), "Cris");
   await cris.goto(room);
   await cris.type("#name", "Cris");
+  await cris.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await cris.click("#join-button");
   await ready(cris);
   console.log(
@@ -69,6 +73,7 @@ const ready = (p) =>
   const ana2 = await page(anaCtx, "Ana again");
   await ana.close();
   await ana2.goto(room);
+  await ana2.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await ana2.click("#join-button");
   await ready(ana2);
   console.log("Ana back as host:", await ana2.$eval("figure.mine figcaption", (e) => e.textContent));

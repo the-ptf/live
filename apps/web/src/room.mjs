@@ -97,6 +97,11 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
   const byToken = (token) => (typeof token === "string" && token ? peers().find(({ peer }) => peer.token === token) : undefined);
 
   return {
+    /** Who is in the room, for the join screen: names, bots and the host, nothing a peer could act on. */
+    who() {
+      return peers().map(({ peer }) => ({ name: peer.name, avatar: peer.avatar ?? null, host: Boolean(peer.host) }));
+    },
+
     refusal(name, client) {
       if (!cleanName(name)) return { status: 400, error: "name-required" };
       if (CLIENT.test(client ?? "") && store.get(`removed:${client}`)) return { status: 403, error: "removed" };

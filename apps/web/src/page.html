@@ -96,33 +96,291 @@
         outline-offset: 2px;
       }
 
+      @font-face {
+        font-family: Geist;
+        src: url(/fonts/geist.woff2) format("woff2");
+        font-weight: 100 900;
+        font-display: swap;
+      }
       .join {
+        position: relative;
         min-height: 100%;
         display: grid;
         place-items: center;
         padding: 24px;
+        overflow: hidden;
+        color: #fff;
+        font-family: Geist, Inter, system-ui, sans-serif;
+        background: linear-gradient(180deg, #0f1433 0%, #1f2357 24%, #463a7f 44%, #8c4f78 62%, #d9746a 80%, #f4a978 92%, #f9cf9b 100%);
       }
-      .card {
-        width: min(360px, 100%);
-        background: var(--surface);
-        border-radius: 12px;
+      .sky {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .horizon {
+        position: absolute;
+        left: -10%;
+        right: -10%;
+        bottom: -18vh;
+        height: 42vh;
+        background: radial-gradient(60% 60% at 50% 100%, rgba(255, 214, 160, 0.55), transparent 70%);
+        filter: blur(10px);
+      }
+      .star {
+        position: absolute;
+        width: var(--s);
+        height: var(--s);
+        border-radius: 50%;
+        background: #fff;
+        opacity: var(--low);
+        animation: twinkle var(--d) ease-in-out var(--delay) infinite;
+      }
+      .star.big {
         box-shadow:
-          0 0 0 1px var(--line),
-          0 2px 8px rgb(0 0 0 / 0.08);
-        padding: 24px;
-        display: grid;
-        gap: 16px;
+          0 0 6px 1px rgba(255, 255, 255, 0.7),
+          0 0 14px 2px rgba(255, 200, 190, 0.35);
       }
-      .brand {
+      @keyframes twinkle {
+        0%,
+        100% {
+          opacity: var(--low);
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.35);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .star {
+          animation: none;
+        }
+      }
+      .join-main {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 600px) minmax(0, 380px);
+        gap: 56px;
+        align-items: center;
+        width: min(1036px, 100%);
+      }
+      .preview {
+        position: relative;
+        aspect-ratio: 16 / 10;
+        border-radius: 24px;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background: rgba(15, 12, 40, 0.55);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+          0 24px 70px rgba(15, 8, 40, 0.45);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      .preview video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+      }
+      .preview-bot {
+        width: 34%;
+        aspect-ratio: 1;
+      }
+      .preview-change {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        padding: 6px 12px;
+        border: 0;
+        border-radius: 999px;
+        background: #fff;
+        color: #1f1a14;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .preview.camera-on .preview-bot,
+      .preview.camera-on .preview-change {
+        display: none;
+      }
+      .preview-tag {
+        position: absolute;
+        left: 14px;
+        bottom: 14px;
+        max-width: calc(50% - 70px);
         display: flex;
         align-items: center;
         gap: 8px;
-        font-weight: 600;
-        font-size: 15px;
+        padding: 5px 10px;
+        border-radius: 10px;
+        background: rgba(10, 8, 30, 0.55);
+        font-size: 13px;
+        font-weight: 500;
       }
-      .card p {
+      .preview-tag span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .preview-meter {
+        display: flex;
+        gap: 2px;
+        align-items: flex-end;
+        height: 12px;
+      }
+      .preview-meter i {
+        width: 3px;
+        height: 3px;
+        border-radius: 2px;
+        background: #3ddc84;
+        transition: height 0.09s;
+      }
+      .preview-controls {
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+      }
+      .preview-toggle {
+        width: 46px;
+        height: 46px;
+        border: 0;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.16);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+      .preview-toggle[aria-pressed="false"] {
+        background: #ff4d57;
+        box-shadow: none;
+      }
+      .preview-toggle .slash {
+        display: none;
+      }
+      .preview-toggle[aria-pressed="false"] .slash {
+        display: inline;
+      }
+      .join-form {
+        display: grid;
+        gap: 18px;
+      }
+      .here {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+      .here-bots {
+        display: flex;
+      }
+      .here-bots span {
+        width: 28px;
+        height: 28px;
+        margin-left: -8px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: rgba(20, 16, 50, 0.55);
+        box-shadow: 0 0 0 2px #2f2a63;
+      }
+      .here-bots span:first-child {
+        margin-left: 0;
+      }
+      .here-bots svg {
+        width: 22px;
+        height: 22px;
+      }
+      .join-title {
         margin: 0;
-        color: var(--ink-2);
+        font-weight: 500;
+        font-size: 36px;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        overflow-wrap: anywhere;
+      }
+      .join-title em {
+        font-style: normal;
+        color: #ffd3c4;
+      }
+      .join .join-label {
+        display: grid;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .join .join-label input {
+        height: 50px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.26);
+        color: #fff;
+        font-size: 17px;
+      }
+      .join .join-label input:focus {
+        outline: 0;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+      }
+      .join .join-label input::placeholder {
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .join .error {
+        color: #ffd3c4;
+        font-size: 14px;
+      }
+      .join-go {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        height: 50px;
+        border: 0;
+        border-radius: 14px;
+        background: #fff;
+        color: #1f1a14;
+        font-weight: 600;
+        font-size: 16px;
+      }
+      .join-go:hover {
+        background: #fff5ee;
+      }
+      .rec {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #ff4d57;
+        box-shadow: 0 0 0 4px rgba(255, 77, 87, 0.25);
+      }
+      .join :focus-visible {
+        outline-color: #fff;
+      }
+      @media (max-width: 860px) {
+        .join {
+          place-items: start center;
+          padding: max(20px, env(safe-area-inset-top)) 16px 24px;
+        }
+        .join-main {
+          grid-template-columns: minmax(0, 520px);
+          gap: 24px;
+          justify-content: center;
+        }
+        .join-title {
+          font-size: 28px;
+        }
       }
       label {
         display: grid;
@@ -497,7 +755,7 @@
         transform: scaleX(-1);
       }
       .avatar,
-      .join-avatar-bot,
+      .preview-bot,
       .picker-preview {
         cursor: pointer;
       }
@@ -572,26 +830,6 @@
       .ghost svg {
         width: 16px;
         height: 16px;
-      }
-      .join-avatar {
-        justify-self: center;
-        display: grid;
-        justify-items: center;
-        gap: 4px;
-        border: 0;
-        background: none;
-        color: var(--ink-3);
-        font-size: 12px;
-        font-weight: 600;
-        padding: 4px;
-        border-radius: 12px;
-      }
-      .join-avatar:hover {
-        color: var(--ink);
-      }
-      .join-avatar-bot {
-        width: 96px;
-        height: 96px;
       }
       .sheet {
         width: min(440px, calc(100% - 24px));
@@ -708,20 +946,47 @@
   </head>
   <body>
     <section class="join" id="join">
-      <form class="card" id="join-form" novalidate>
-        <div class="brand">
-          <img src="/icon.svg" width="22" height="22" alt="" />
-          Milagre Live
+      <div class="sky" id="sky" aria-hidden="true"><div class="horizon"></div></div>
+      <div class="join-main">
+        <div class="preview" id="preview">
+          <video id="preview-video" autoplay muted playsinline hidden></video>
+          <div class="preview-bot" id="join-avatar" role="button" tabindex="0" aria-label="Change your bot"></div>
+          <button class="preview-change" id="join-avatar-button" type="button">Change bot</button>
+          <div class="preview-tag">
+            <span id="preview-name">You</span>
+            <span class="preview-meter" id="preview-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          </div>
+          <div class="preview-controls">
+            <button class="preview-toggle" id="preview-mic" type="button" aria-pressed="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+                <line class="slash" x1="3" y1="3" x2="21" y2="21" />
+              </svg>
+            </button>
+            <button class="preview-toggle" id="preview-camera" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11" />
+                <rect x="2" y="6" width="14" height="12" rx="2" />
+                <line class="slash" x1="3" y1="3" x2="21" y2="21" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <p id="join-intro">Talk, share your screen or turn on your camera with anyone who has the link.</p>
-        <button class="join-avatar" id="join-avatar-button" type="button" aria-label="Customize your avatar">
-          <div class="join-avatar-bot" id="join-avatar"></div>
-          <span>Customize</span>
-        </button>
-        <label>Your name <input id="name" name="name" autocomplete="name" maxlength="40" required /></label>
-        <p class="error" id="join-error" hidden></p>
-        <button class="primary" id="join-button" type="submit">Start a room</button>
-      </form>
+        <form class="join-form" id="join-form" novalidate>
+          <div class="here" id="here" hidden>
+            <span class="here-bots" id="here-bots"></span>
+            <span id="here-text"></span>
+          </div>
+          <h1 class="join-title" id="join-title">Start a room</h1>
+          <label class="join-label"
+            >Your name <input id="name" name="name" autocomplete="name" maxlength="40" placeholder="How the room sees you" required
+          /></label>
+          <p class="error" id="join-error" hidden></p>
+          <button class="join-go" id="join-button" type="submit"><span class="rec" aria-hidden="true"></span><span id="join-label">Start room</span></button>
+        </form>
+      </div>
     </section>
 
     <section class="room" id="room" hidden>

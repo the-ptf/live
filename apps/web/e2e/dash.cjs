@@ -23,6 +23,7 @@ const ready = (p) =>
     const p = await (await browser.createBrowserContext()).newPage();
     await p.goto(url);
     await p.type("#name", name);
+    await p.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
     await p.click("#join-button");
     await ready(p);
     return p;

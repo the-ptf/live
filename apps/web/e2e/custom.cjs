@@ -31,6 +31,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.screenshot({ path: `${OUT}/picker.png` });
   await a.click("#picker-done");
   await a.type("#name", "Ana");
+  await a.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await a.click("#join-button");
   await a.waitForFunction(
     () => !/Connecting|Reconnecting/.test(document.getElementById("status").textContent) && document.getElementById("people").textContent.includes("here"),
@@ -39,6 +40,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const b = await open("Bia");
   await b.goto(a.url());
   await b.type("#name", "Bia");
+  await b.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await b.click("#join-button");
   await b.waitForFunction(
     () => !/Connecting|Reconnecting/.test(document.getElementById("status").textContent) && document.getElementById("people").textContent.includes("here"),

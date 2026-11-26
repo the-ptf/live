@@ -40,6 +40,7 @@ const moves = (p, selector) =>
   page.on("pageerror", (e) => console.log("pageerror", e.message));
   await page.goto(BASE + "/start");
   await page.type("#name", "Ana");
+  await page.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await page.click("#join-button");
   await ready(page);
   const bot = "#gallery figure.mine .avatar";

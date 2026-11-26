@@ -1,5 +1,6 @@
 import { NAME_KEY, cleanName, createRoom, hostKeyName, randomToken } from "./ids.js";
-import { hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
+import { botSvg, hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
+import { createPreview } from "./preview.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
 import { noiseSuppression, setNoiseSuppression, suppressNoise } from "./noise.js";
 import { cameraEncoding, DEFAULT_SCREEN_PRESET, SCREEN_AUDIO_BITRATE, SCREEN_PRESETS } from "./media.mjs";
@@ -645,7 +646,8 @@ function backToJoin(error) {
   $("join").hidden = false;
   $("join-error").hidden = !error;
   $("join-error").textContent = error ?? "";
-  $("join-button").textContent = "Join again";
+  $("join-label").textContent = "Join again";
+  showJoin();
 }
 
 /** Swaps what the camera sends without renegotiating: the plain camera, or the effect canvas running over it. */
@@ -854,13 +856,98 @@ async function toggleNoise() {
   await toggle("mic");
 }
 
-function capture(source) {
+function openDevice(source) {
   const saved = DEVICES[source] && deviceId(source);
   const chosen = saved ? { deviceId: { ideal: saved } } : {};
   if (source === "camera") return navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, ...chosen }, audio: false });
   if (source === "mic")
     return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, ...chosen }, video: false });
   return captureScreen();
+}
+
+/** The join screen's camera and mic go into the room as they are; anything else asks the browser. */
+function capture(source) {
+  const track = preview.take(source);
+  return track ? Promise.resolve(new MediaStream([track])) : openDevice(source);
+}
+
+const preview = createPreview({
+  open: openDevice,
+  blocked: (source) => toast(source === "camera" ? "Camera access was blocked" : "Microphone access was blocked"),
+  meter: $("preview-meter"),
+  paint(intent, tracks) {
+    for (const source of ["mic", "camera"]) {
+      const button = $(`preview-${source}`);
+      const label = source === "mic" ? (intent.mic ? "Join with mic off" : "Join with mic on") : intent.camera ? "Join with camera off" : "Join with camera on";
+      button.setAttribute("aria-pressed", String(intent[source]));
+      button.setAttribute("aria-label", label);
+      button.title = label;
+    }
+    const video = $("preview-video");
+    const camera = intent.camera ? tracks.camera : null;
+    if ((video.srcObject?.getVideoTracks()[0] ?? null) !== camera) video.srcObject = camera ? new MediaStream([camera]) : null;
+    video.hidden = !camera;
+    $("preview").classList.toggle("camera-on", Boolean(camera));
+  },
+});
+
+function paintStars() {
+  let seed = 7;
+  const random = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const stars = Array.from({ length: 70 }, () => {
+    const star = document.createElement("i");
+    const size = [1, 1, 1, 1.5, 1.5, 2, 2.5][Math.floor(random() * 7)];
+    star.className = size >= 2.5 ? "star big" : "star";
+    star.style.cssText = `left:${2 + random() * 96}%;top:${2 + random() * 60}%;--s:${size}px;--d:${2.5 + random() * 4.5}s;--delay:${-random() * 7}s;--low:${0.1 + random() * 0.35}`;
+    return star;
+  });
+  $("sky").prepend(...stars);
+}
+
+const listNames = (names, more) => {
+  if (more) return `${names.join(", ")} and ${more} other${more === 1 ? "" : "s"}`;
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
+};
+
+/** The join screen's title and who's here row, from the room's roster; checked again while the screen is up. */
+async function paintWho() {
+  if (!roomId) return;
+  let people;
+  try {
+    const response = await fetch(`/api/rooms/${roomId}/who`, { method: "POST" });
+    if (!response.ok) return;
+    ({ people } = await response.json());
+  } catch {
+    return;
+  }
+  if ($("join").hidden) return;
+  const host = people.find((person) => person.host);
+  const title = $("join-title");
+  title.replaceChildren();
+  if (host && host.name !== cleanName($("name").value))
+    title.append("Join ", Object.assign(document.createElement("em"), { textContent: `${host.name}'s` }), " room");
+  else title.textContent = "Join the room";
+  $("here").hidden = false;
+  $("here-bots").hidden = !people.length;
+  $("here-bots").replaceChildren(
+    ...people.slice(0, 3).map((person) => {
+      const bubble = document.createElement("span");
+      bubble.innerHTML = botSvg(person.avatar ?? lookFor(person.name));
+      return bubble;
+    }),
+  );
+  const names = people.slice(0, people.length > 3 ? 2 : 3).map((person) => person.name);
+  $("here-text").textContent = people.length
+    ? `${listNames(names, people.length - names.length)} ${people.length === 1 ? "is" : "are"} here`
+    : "Nobody's here yet";
+}
+
+let whoTimer = 0;
+function showJoin() {
+  preview.start();
+  paintWho();
+  clearInterval(whoTimer);
+  if (roomId) whoTimer = setInterval(paintWho, 8000);
 }
 
 async function toggle(source) {
@@ -927,17 +1014,28 @@ function enter(name) {
     history.replaceState(null, "", `/r/${roomId}`);
   }
   leaving = false;
+  clearInterval(whoTimer);
   $("join").hidden = true;
   $("room").hidden = false;
   render();
   connect(name);
+  const bring = preview.intent();
+  for (const source of ["mic", "camera"]) if (bring[source] && !local.has(source)) toggle(source);
+  preview.stop();
 }
 
 $("name").value = localStorage.getItem(NAME_KEY) ?? "";
+const paintName = () => ($("preview-name").textContent = cleanName($("name").value) || "You");
+paintName();
+$("name").addEventListener("input", paintName);
 if (roomId) {
-  $("join-button").textContent = "Join";
-  $("join-intro").textContent = "Type your name to join this room. You can share your screen or camera once you're in.";
+  $("join-label").textContent = "Join room";
+  $("join-title").textContent = "Join the room";
 }
+paintStars();
+for (const source of ["mic", "camera"]) $(`preview-${source}`).addEventListener("click", () => preview.toggle(source));
+$("join-avatar").addEventListener("click", customize);
+$("join-avatar").addEventListener("keydown", (event) => (event.key === "Enter" || event.key === " ") && (event.preventDefault(), customize()));
 if (!navigator.mediaDevices?.getDisplayMedia) $("screen").hidden = true;
 $("join-form").addEventListener("submit", join);
 $("join-avatar-button").addEventListener("click", customize);
@@ -990,8 +1088,10 @@ document.addEventListener("click", (event) => {
 });
 $("name").focus();
 new ResizeObserver(layout).observe($("stage"));
+const autoJoin = roomId && new URLSearchParams(location.search).has("join") && localStorage.getItem(NAME_KEY);
+if (!autoJoin) showJoin();
 // The landing page made this room and sends its host here with `?join=1`: they already typed a name, so go in.
-if (roomId && new URLSearchParams(location.search).has("join") && localStorage.getItem(NAME_KEY)) {
+if (autoJoin) {
   history.replaceState(null, "", `/r/${roomId}`);
   enter(localStorage.getItem(NAME_KEY));
 }

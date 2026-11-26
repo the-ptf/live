@@ -45,6 +45,7 @@ const ready = (p) =>
   ana.on("pageerror", (e) => console.log("pageerror Ana", e.message));
   await ana.goto(BASE + "/start");
   await ana.type("#name", "Ana");
+  await ana.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await ana.click("#join-button");
   await ready(ana);
   await ana.evaluate(() => document.getElementById("screen").click());
@@ -55,6 +56,7 @@ const ready = (p) =>
   bia.on("pageerror", (e) => console.log("pageerror Bia", e.message));
   await bia.goto(ana.url());
   await bia.type("#name", "Bia");
+  await bia.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await bia.click("#join-button");
   await ready(bia);
   await bia.waitForFunction(

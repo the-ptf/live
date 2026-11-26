@@ -45,6 +45,7 @@ const videos = () =>
   const b = await (await browser.createBrowserContext()).newPage();
   await a.goto(BASE + "/start");
   await a.type("#name", "Ana");
+  await a.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await a.click("#join-button");
   await until(
     a,
@@ -58,6 +59,7 @@ const videos = () =>
   await until(a, () => document.querySelector("figure.tile video")?.videoWidth > 0, null, "Ana sees own camera");
   await b.goto(room);
   await b.type("#name", "Bia");
+  await b.$eval("#preview-mic", (button) => button.getAttribute("aria-pressed") === "true" && button.click());
   await b.click("#join-button");
   await until(
     b,
