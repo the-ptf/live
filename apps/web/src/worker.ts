@@ -6,8 +6,8 @@ import icon512 from "./brand/icon-512.png";
 import appleTouchIcon from "./brand/apple-touch-icon.png";
 import ogImage from "./brand/og.png";
 import geist from "../dist/geist.bin";
-import instrumentSerif from "../dist/instrument-serif-italic.bin";
 import script from "../dist/app.txt";
+import landingScript from "../dist/landing.txt";
 import rnnoiseWorklet from "../dist/rnnoise-worklet.txt";
 import rnnoise from "../dist/rnnoise.bin";
 import rnnoiseSimd from "../dist/rnnoise_simd.bin";
@@ -56,7 +56,7 @@ const MANIFEST = JSON.stringify({
 
 /**
  * Files served as they are: RNNoise for the mic's noise suppression (an AudioWorklet loads by URL, with its wasm), the
- * icons and link preview, and the landing page's fonts.
+ * icons and link preview, the landing page's script and its font.
  */
 const STATIC_FILES: Record<string, { body: string | ArrayBuffer; type: string }> = {
   "/noise/rnnoise-worklet.js": { body: rnnoiseWorklet, type: "text/javascript; charset=utf-8" },
@@ -68,12 +68,12 @@ const STATIC_FILES: Record<string, { body: string | ArrayBuffer; type: string }>
   "/apple-touch-icon.png": { body: appleTouchIcon, type: "image/png" },
   "/og.png": { body: ogImage, type: "image/png" },
   "/manifest.webmanifest": { body: MANIFEST, type: "application/manifest+json" },
+  "/landing.js": { body: landingScript, type: "text/javascript; charset=utf-8" },
   "/fonts/geist.woff2": { body: geist, type: "font/woff2" },
-  "/fonts/instrument-serif-italic.woff2": { body: instrumentSerif, type: "font/woff2" },
 };
 
 const LANDING_CSP =
-  "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 // The landing page is the one page search engines may list; rooms, the stats and the API stay out.
 const ROBOTS = "User-agent: *\nAllow: /$\nDisallow: /r/\nDisallow: /start\nDisallow: /dash\nDisallow: /api/\n";
 

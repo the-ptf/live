@@ -12,9 +12,17 @@ for (const [from, to] of [
   ["@sapphi-red/web-noise-suppressor/rnnoise.wasm", "rnnoise.bin"],
   ["@sapphi-red/web-noise-suppressor/rnnoise_simd.wasm", "rnnoise_simd.bin"],
   ["@fontsource-variable/geist/files/geist-latin-wght-normal.woff2", "geist.bin"],
-  ["@fontsource/instrument-serif/files/instrument-serif-latin-400-italic.woff2", "instrument-serif-italic.bin"],
 ])
   copyFileSync(require.resolve(from), dist + to);
+
+await build({
+  entryPoints: [new URL("./src/landing.js", import.meta.url).pathname],
+  outfile: new URL("./dist/landing.txt", import.meta.url).pathname,
+  bundle: true,
+  format: "esm",
+  minify: true,
+  target: "es2022",
+});
 
 await build({
   entryPoints: [new URL("./src/client.js", import.meta.url).pathname],

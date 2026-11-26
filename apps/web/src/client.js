@@ -1,3 +1,4 @@
+import { NAME_KEY, cleanName, createRoom, hostKeyName, randomToken } from "./ids.js";
 import { hideBot, loadLook, lookFor, openPicker, showBot } from "./avatars.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
 import { noiseSuppression, setNoiseSuppression, suppressNoise } from "./noise.js";
@@ -5,7 +6,6 @@ import { cameraEncoding, DEFAULT_SCREEN_PRESET, SCREEN_AUDIO_BITRATE, SCREEN_PRE
 import { playVoice, setDeafened, setVolume, stopAllVoices, stopVoice, unwatchLevel, volumeOf, watchLevel } from "./voice.js";
 
 const $ = (id) => document.getElementById(id);
-const NAME_KEY = "milagre-live:name";
 const ROOM_PATH = /^\/r\/([a-z]{4}-[a-z]{4}-[a-z]{4})$/;
 
 let myLook = loadLook();
@@ -30,22 +30,10 @@ const local = new Map();
 const remote = new Map();
 const tiles = new Map();
 
-function randomToken(length) {
-  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-  return [...crypto.getRandomValues(new Uint8Array(length))].map((byte) => alphabet[byte % alphabet.length]).join("");
-}
-
 const CLIENT_KEY = "milagre-live:client";
 const clientId = localStorage.getItem(CLIENT_KEY) ?? randomToken(24);
 localStorage.setItem(CLIENT_KEY, clientId);
-const hostKeyOf = (room) => localStorage.getItem(`milagre-live:host:${room}`);
-
-function newRoomId() {
-  const letters = "abcdefghijklmnopqrstuvwxyz";
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  const chars = [...bytes].map((byte) => letters[byte % 26]);
-  return [chars.slice(0, 4), chars.slice(4, 8), chars.slice(8)].map((part) => part.join("")).join("-");
-}
+const hostKeyOf = (room) => localStorage.getItem(hostKeyName(room));
 
 function toast(text, duration = 2400) {
   const element = $("toast");
@@ -924,7 +912,10 @@ async function toggle(source) {
 
 function join(event) {
   event.preventDefault();
-  const name = $("name").value.replace(/\s+/g, " ").trim();
+  enter(cleanName($("name").value));
+}
+
+function enter(name) {
   if (!name) {
     $("join-error").textContent = "Type your name first.";
     $("join-error").hidden = false;
@@ -932,8 +923,7 @@ function join(event) {
   }
   localStorage.setItem(NAME_KEY, name);
   if (!roomId) {
-    roomId = newRoomId();
-    localStorage.setItem(`milagre-live:host:${roomId}`, randomToken(40));
+    roomId = createRoom();
     history.replaceState(null, "", `/r/${roomId}`);
   }
   leaving = false;
@@ -1000,3 +990,8 @@ document.addEventListener("click", (event) => {
 });
 $("name").focus();
 new ResizeObserver(layout).observe($("stage"));
+// The landing page made this room and sends its host here with `?join=1`: they already typed a name, so go in.
+if (roomId && new URLSearchParams(location.search).has("join") && localStorage.getItem(NAME_KEY)) {
+  history.replaceState(null, "", `/r/${roomId}`);
+  enter(localStorage.getItem(NAME_KEY));
+}

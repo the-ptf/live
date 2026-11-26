@@ -5,10 +5,12 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
 
 ## How it works
 
-- `GET /` is the landing page (`src/landing.html`): no script, Geist and Instrument Serif served from `/fonts/`, its
-  own CSP, and the only page `robots.txt` lets search engines list. `GET /start` and `GET /r/<room>` serve the call
-  (`src/page.html`, plus `src/client.js` bundled by `build.mjs` into `dist/app.txt`, which wrangler runs before `dev`
-  and `deploy`). Starting a room makes a random `xxxx-xxxx-xxxx` id in the browser.
+- `GET /` is the landing page (`src/landing.html`): a dawn sky with twinkling stars, a name and Start room. Its
+  script (`src/landing.js`, bundled to `dist/landing.txt`) creates the room and its host key, keeps the name, and opens
+  `/r/<room>?join=1`, where the call joins at once. It is the only page `robots.txt` lets search engines list. `GET
+  /start` and `GET /r/<room>` serve the call (`src/page.html`, plus `src/client.js` bundled into `dist/app.txt`);
+  `build.mjs` builds both, and wrangler runs it before `dev` and `deploy`. Room ids and host keys come from
+  `src/ids.js`.
 - The icon is `src/brand/icon.svg`; `node scripts/brand.cjs` renders `icon-192.png`, `icon-512.png`,
   `apple-touch-icon.png` and the link preview `og.png` from it. The Worker serves them with `/manifest.webmanifest`.
 - Everyone gets a tile, laid out at the largest 16:9 size where all of them fit; a shared screen takes the stage and the
@@ -112,6 +114,7 @@ npm run deploy       # needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in t
 
 `e2e/` drives real headless Chromium peers with a fake camera and screen through the real Realtime SFU:
 
+- `landing.cjs`: a name and Start room on the landing page land you in a new room as its host, on desktop and phone.
 - `two-peers.cjs`: camera both ways, a screen share, a camera turning back into the bot, leaving.
 - `custom.cjs`: a fluffy avatar choice reaching the other person, and camera effects on and off.
 - `kick.cjs`: the host removes someone, who can't rejoin from that browser; the host comes back as host.

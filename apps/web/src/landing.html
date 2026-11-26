@@ -20,7 +20,6 @@
     <meta property="og:image" content="https://live.milagre.cloud/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin />
     <style>
       @font-face {
         font-family: Geist;
@@ -28,1105 +27,319 @@
         font-weight: 100 900;
         font-display: swap;
       }
-      @font-face {
-        font-family: "Instrument Serif";
-        src: url(/fonts/instrument-serif-italic.woff2) format("woff2");
-        font-style: italic;
-        font-weight: 400;
-        font-display: swap;
-      }
-      :root {
-        --cream: #fbf6ee;
-        --cream-2: #f3ebdd;
-        --ink: #1f1a14;
-        --ink-2: #5b5145;
-        --ink-3: #7a6f61;
-        --live: #e8434c;
-        --warm: #9a4a2e;
-        --gold: #f3c98b;
-        --night: #0c1222;
-      }
       * {
         box-sizing: border-box;
       }
-      html {
-        scroll-behavior: smooth;
-      }
+      html,
       body {
         margin: 0;
+        height: 100%;
+      }
+      body {
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
         font-family: Geist, Inter, system-ui, sans-serif;
-        background: var(--cream);
-        color: var(--ink);
+        background: linear-gradient(180deg, #0f1433 0%, #1f2357 24%, #463a7f 44%, #8c4f78 62%, #d9746a 80%, #f4a978 92%, #f9cf9b 100%);
+        color: #fff;
         -webkit-font-smoothing: antialiased;
       }
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-      svg.i {
-        width: 16px;
-        height: 16px;
-        flex: none;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-      .serif {
-        font-family: "Instrument Serif", Georgia, serif;
-        font-style: italic;
-        font-weight: 400;
-      }
-      :focus-visible {
-        outline: 2px solid var(--live);
-        outline-offset: 3px;
-        border-radius: 6px;
-      }
-
       .sky {
-        position: relative;
-        overflow: hidden;
-        padding-bottom: 80px;
-        background: linear-gradient(180deg, #141a3d 0%, #2a2a63 22%, #5a3f84 42%, #a8566f 60%, #e3826a 74%, #f6b47e 84%, var(--cream) 100%);
-      }
-      .stars {
-        position: absolute;
-        inset: 0 0 45% 0;
-        background-image:
-          radial-gradient(1px 1px at 12% 18%, #fff9 50%, transparent 51%), radial-gradient(1px 1px at 22% 8%, #fff8 50%, transparent 51%),
-          radial-gradient(1.5px 1.5px at 34% 26%, #fffa 50%, transparent 51%), radial-gradient(1px 1px at 47% 12%, #fff7 50%, transparent 51%),
-          radial-gradient(1px 1px at 63% 22%, #fff9 50%, transparent 51%), radial-gradient(1.5px 1.5px at 74% 9%, #fffb 50%, transparent 51%),
-          radial-gradient(1px 1px at 86% 20%, #fff8 50%, transparent 51%), radial-gradient(1px 1px at 92% 34%, #fff6 50%, transparent 51%),
-          radial-gradient(1px 1px at 6% 36%, #fff6 50%, transparent 51%), radial-gradient(1px 1px at 55% 33%, #fff5 50%, transparent 51%),
-          radial-gradient(1.5px 1.5px at 28% 40%, #fff6 50%, transparent 51%), radial-gradient(1px 1px at 80% 41%, #fff5 50%, transparent 51%);
-        animation: twinkle 6s ease-in-out infinite alternate;
-      }
-      @keyframes twinkle {
-        to {
-          opacity: 0.6;
-        }
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
       }
       .glow {
         position: absolute;
         left: 50%;
-        top: 40px;
-        width: 520px;
-        height: 520px;
-        transform: translateX(-50%);
-        background: radial-gradient(circle, rgba(255, 120, 110, 0.45), rgba(255, 120, 110, 0.12) 35%, transparent 62%);
+        top: 50%;
+        width: 720px;
+        height: 720px;
+        transform: translate(-50%, -58%);
+        background: radial-gradient(circle, rgba(255, 128, 118, 0.42), rgba(255, 128, 118, 0.1) 38%, transparent 64%);
       }
-      nav {
+      .horizon {
+        position: absolute;
+        left: -10%;
+        right: -10%;
+        bottom: -18vh;
+        height: 42vh;
+        background: radial-gradient(60% 60% at 50% 100%, rgba(255, 214, 160, 0.55), transparent 70%);
+        filter: blur(10px);
+      }
+      .star {
+        position: absolute;
+        width: var(--s);
+        height: var(--s);
+        border-radius: 50%;
+        background: #fff;
+        opacity: var(--low);
+        animation: twinkle var(--d) ease-in-out var(--delay) infinite;
+      }
+      .star.big {
+        box-shadow:
+          0 0 6px 1px rgba(255, 255, 255, 0.7),
+          0 0 14px 2px rgba(255, 200, 190, 0.35);
+      }
+      @keyframes twinkle {
+        0%,
+        100% {
+          opacity: var(--low);
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.35);
+        }
+      }
+      main {
         position: relative;
-        z-index: 4;
-        display: flex;
-        align-items: center;
-        gap: 22px;
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 22px 80px;
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 14px;
-      }
-      nav .links {
-        display: contents;
-      }
-      nav a:hover {
-        color: #fff;
-      }
-      nav .gh {
-        margin-left: auto;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        height: 36px;
-        padding: 0 12px;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.1);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
-        color: #fff;
-        font-weight: 600;
-      }
-      .hero {
-        position: relative;
-        z-index: 3;
-        text-align: center;
-        padding: 18px 24px 0;
-        color: #fff;
+        z-index: 1;
+        display: grid;
+        justify-items: center;
+        gap: 36px;
+        padding: 24px;
+        width: 100%;
       }
       .mark {
-        width: 60px;
-        height: 60px;
-        filter: drop-shadow(0 0 28px rgba(255, 110, 110, 0.9)) drop-shadow(0 0 60px rgba(255, 90, 95, 0.6));
+        width: 76px;
+        height: 76px;
+        filter: drop-shadow(0 0 28px rgba(255, 110, 110, 0.9)) drop-shadow(0 0 64px rgba(255, 90, 95, 0.55));
         animation: breathe 4s ease-in-out infinite;
       }
       @keyframes breathe {
         50% {
-          filter: drop-shadow(0 0 36px rgba(255, 110, 110, 1)) drop-shadow(0 0 80px rgba(255, 90, 95, 0.7));
+          filter: drop-shadow(0 0 38px rgba(255, 110, 110, 1)) drop-shadow(0 0 90px rgba(255, 90, 95, 0.7));
         }
       }
       h1 {
-        margin: 18px 0 0;
-        font-weight: 600;
-        font-size: 56px;
-        letter-spacing: -0.03em;
-        line-height: 1.05;
-        color: #f7f1ea;
-      }
-      h1 .serif {
-        display: block;
-        font-size: 60px;
-        letter-spacing: -0.01em;
-        color: var(--gold);
-        margin-top: 4px;
-      }
-      .lede {
-        margin: 18px auto 0;
-        max-width: 620px;
-        font-size: 17px;
-        line-height: 1.55;
-        color: rgba(255, 255, 255, 0.85);
-      }
-      .product {
-        position: relative;
-        z-index: 2;
-        width: min(560px, 92vw);
-        height: 250px;
-        margin: 30px auto 0;
+        position: absolute;
+        width: 1px;
+        height: 1px;
         overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
-      .call {
-        background: #121c2c;
-        border-radius: 16px;
-        padding: 10px;
-        box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.08),
-          0 40px 90px rgba(20, 10, 40, 0.55);
-      }
-      .stage {
-        display: grid;
-        grid-template-columns: 1fr 27%;
-        gap: 8px;
-      }
-      .game {
-        position: relative;
-        min-height: 100%;
-        border-radius: 10px;
-        overflow: hidden;
-        background: linear-gradient(180deg, #f2a35e 0%, #e27a62 32%, #6f4a8e 60%, #2b2442 100%);
-      }
-      .w1,
-      .w2,
-      .w3 {
-        position: absolute;
-        bottom: 0;
-      }
-      .w1 {
-        left: 0;
-        width: 38%;
-        height: 62%;
-        clip-path: polygon(0 0, 100% 18%, 100% 100%, 0 100%);
-        background: #3b3157;
-      }
-      .w2 {
-        right: 0;
-        width: 34%;
-        height: 70%;
-        clip-path: polygon(0 22%, 100% 0, 100% 100%, 0 100%);
-        background: #30284a;
-      }
-      .w3 {
-        left: 38%;
-        width: 28%;
-        height: 34%;
-        background: #4a3d6a;
-        clip-path: polygon(0 30%, 100% 0, 100% 100%, 0 100%);
-      }
-      .sun {
-        position: absolute;
-        left: 58%;
-        top: 16%;
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        background: #ffd59a;
-        filter: blur(2px);
-        opacity: 0.85;
-      }
-      .cross {
-        position: absolute;
-        left: 50%;
-        top: 52%;
-        width: 22px;
-        height: 22px;
-        transform: translate(-50%, -50%);
-      }
-      .cross::before,
-      .cross::after {
-        content: "";
-        position: absolute;
-        background: #5ff0d0;
-      }
-      .cross::before {
-        left: 10px;
-        top: 0;
-        width: 2px;
-        height: 22px;
-      }
-      .cross::after {
-        top: 10px;
-        left: 0;
-        width: 22px;
-        height: 2px;
-      }
-      .hud {
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
+      form {
         display: flex;
-        gap: 6px;
-        font-weight: 700;
-        font-size: 12px;
-        color: #fff;
-      }
-      .hud b {
-        background: rgba(10, 17, 29, 0.7);
-        padding: 3px 8px;
-        border-radius: 5px;
-      }
-      .hud .t {
-        color: #5ff0d0;
-      }
-      .hud .e {
-        color: #ff8a90;
-      }
-      .people {
-        display: grid;
-        gap: 8px;
-      }
-      .person {
-        position: relative;
-        border-radius: 9px;
-        background: #172232;
-        display: grid;
-        place-items: center;
-        aspect-ratio: 16/11;
-      }
-      .person.speaking {
-        box-shadow: 0 0 0 2px #3cbb72;
-      }
-      .person .name {
-        position: absolute;
-        left: 5px;
-        bottom: 5px;
-        font-size: 10px;
-        color: #fff;
-        background: rgba(0, 0, 0, 0.55);
-        padding: 2px 6px;
-        border-radius: 5px;
-        display: flex;
-        gap: 4px;
         align-items: center;
+        gap: 6px;
+        width: min(440px, 100%);
+        padding: 6px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.26),
+          0 14px 44px rgba(20, 10, 40, 0.35);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        transition: box-shadow 0.2s;
       }
-      .person .name svg.i {
-        width: 9px;
-        height: 9px;
+      form:focus-within {
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+          0 14px 44px rgba(20, 10, 40, 0.4);
       }
-      .bot {
-        width: 34px;
-        height: 34px;
-        border-radius: 12px 12px 14px 14px;
-        position: relative;
+      input {
+        flex: 1;
+        min-width: 0;
+        height: 46px;
+        padding: 0 14px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: #fff;
+        font: inherit;
+        font-size: 17px;
       }
-      .bot::after {
-        content: "^ ^";
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 9px;
-        text-align: center;
-        font-weight: 800;
-        font-size: 11px;
-        color: #1b1324;
-        letter-spacing: 1px;
+      input::placeholder {
+        color: rgba(255, 255, 255, 0.62);
       }
-      .cam {
-        background: linear-gradient(160deg, #4b5d78, #27344a);
-      }
-      .face {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: #c79b7d;
-        box-shadow: 0 17px 0 6px #31415c;
-      }
-      .haze {
-        position: absolute;
-        left: -10%;
-        right: -10%;
-        bottom: -40px;
-        height: 250px;
-        z-index: 3;
-        background:
-          radial-gradient(60% 60% at 18% 62%, var(--cream) 45%, transparent 72%), radial-gradient(45% 60% at 52% 58%, var(--cream) 48%, transparent 74%),
-          radial-gradient(55% 60% at 86% 62%, var(--cream) 45%, transparent 72%), linear-gradient(180deg, transparent 0%, var(--cream) 48%);
-        filter: blur(6px);
-        pointer-events: none;
-      }
-      .cta-zone {
-        position: relative;
-        z-index: 4;
-        text-align: center;
-        margin-top: -120px;
-        padding: 0 24px;
-      }
-      .btn {
+      button {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 10px;
-        height: 52px;
-        padding: 0 24px;
-        border-radius: 14px;
-        background: var(--ink);
-        color: #fbf6ee;
+        height: 46px;
+        padding: 0 20px;
+        border: 0;
+        border-radius: 13px;
+        background: #fff;
+        color: #1f1a14;
+        font: inherit;
         font-weight: 600;
         font-size: 16px;
-        box-shadow: 0 10px 30px rgba(31, 26, 20, 0.25);
+        white-space: nowrap;
+        cursor: pointer;
         transition:
           transform 0.15s,
-          box-shadow 0.15s;
+          background 0.15s;
       }
-      .btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 34px rgba(31, 26, 20, 0.3);
+      button:hover {
+        background: #fff5ee;
       }
-      .btn:active {
+      button:active {
         transform: translateY(1px);
+      }
+      button:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 3px;
       }
       .rec {
         width: 9px;
         height: 9px;
         border-radius: 50%;
-        background: var(--live);
-        box-shadow: 0 0 0 4px rgba(232, 67, 76, 0.25);
+        background: #ff4d57;
+        box-shadow: 0 0 0 4px rgba(255, 77, 87, 0.25);
       }
-      .under {
-        margin-top: 14px;
-        color: var(--ink-2);
-        font-size: 14px;
-        display: flex;
-        justify-content: center;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      .under i {
-        font-style: normal;
-        color: var(--ink-3);
-      }
-
-      section {
-        position: relative;
-        z-index: 5;
-        padding: 120px 80px 40px;
-        max-width: 1280px;
-        margin: 0 auto;
-      }
-      h2 {
-        margin: 0;
-        font-weight: 600;
-        font-size: 48px;
-        letter-spacing: -0.03em;
-        line-height: 1.06;
-      }
-      h2 .serif {
-        display: block;
-        font-size: 52px;
-        color: var(--warm);
-        letter-spacing: -0.01em;
-        margin-top: 2px;
-      }
-      .center {
-        text-align: center;
-      }
-      .copy {
-        color: var(--ink-2);
-        font-size: 18px;
-        line-height: 1.6;
-        max-width: 560px;
-        margin: 20px 0 0;
-      }
-      .center .copy {
-        margin: 20px auto 0;
-      }
-      .frame {
-        border-radius: 20px;
-        background: var(--night);
-        box-shadow:
-          0 0 0 1px rgba(31, 26, 20, 0.08),
-          0 40px 80px rgba(31, 26, 20, 0.18);
-        overflow: hidden;
-      }
-      .two {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 64px;
-        align-items: center;
-      }
-      .quality {
-        padding: 22px;
-        display: grid;
-        gap: 10px;
-        color: #e9eff7;
-      }
-      .qrow {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 14px;
-        border-radius: 12px;
-        background: #172232;
-      }
-      .qrow.on {
-        box-shadow: inset 0 0 0 1.5px #3e9afd;
-      }
-      .qrow b {
-        font-weight: 600;
-      }
-      .qrow span {
-        margin-left: auto;
-        color: #939ca9;
+      .hint {
+        margin: -18px 0 0;
         font-size: 13px;
-      }
-      .qrow .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #3cbb72;
-      }
-      .meter {
-        padding: 26px;
-        color: #e9eff7;
-        display: grid;
-        gap: 14px;
-      }
-      .mrow {
-        display: grid;
-        grid-template-columns: 40px 1fr 46px;
-        gap: 12px;
-        align-items: center;
-        font-size: 14px;
-      }
-      .avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        display: grid;
-        place-items: center;
-      }
-      .track {
-        height: 6px;
-        border-radius: 3px;
-        background: #273242;
-        position: relative;
-      }
-      .track i {
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        border-radius: 3px;
-        background: #e9eff7;
-      }
-      .track b {
-        position: absolute;
-        top: 50%;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #fff;
-        transform: translate(-50%, -50%);
-      }
-      .mrow small {
-        color: #939ca9;
-        text-align: right;
-      }
-      .editor {
-        font-family: ui-monospace, "SF Mono", Menlo, monospace;
-        font-size: 13.5px;
-        color: #d6deeb;
-      }
-      .editor .bar {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
-        background: #111a28;
-        border-bottom: 1px solid #22304a;
-        font-family: Geist, sans-serif;
-        font-size: 12px;
-        color: #939ca9;
-      }
-      .editor .bar .light {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #2a3850;
-      }
-      .editor .bar .file {
-        margin-left: 8px;
-        color: #e9eff7;
-        background: #172232;
-        padding: 4px 10px;
-        border-radius: 6px;
-      }
-      .editor .bar .mode {
-        margin-left: auto;
-        color: #80b9fd;
-        display: flex;
-        gap: 6px;
-        align-items: center;
-      }
-      .code {
-        padding: 16px 0;
-        overflow-x: auto;
-        white-space: nowrap;
-      }
-      .ln {
-        display: flex;
-        line-height: 1.8;
-      }
-      .n {
-        width: 46px;
-        flex: none;
-        text-align: right;
-        padding-right: 16px;
-        color: #3b4860;
-      }
-      .k {
-        color: #c792ea;
-      }
-      .f {
-        color: #82aaff;
-      }
-      .s {
-        color: #c3e88d;
-      }
-      .c {
-        color: #56647d;
-      }
-      .v {
-        color: #f78c6c;
-      }
-      .ln.hl {
-        background: rgba(62, 154, 253, 0.08);
-        box-shadow: inset 2px 0 0 #3e9afd;
-      }
-      .cursor {
-        display: inline-block;
-        width: 2px;
-        height: 15px;
-        background: #ff8a90;
-        vertical-align: -2px;
-        animation: blink 1s steps(1) infinite;
-      }
-      @keyframes blink {
-        50% {
-          opacity: 0;
-        }
-      }
-      .who {
-        font-family: Geist, sans-serif;
-        font-size: 10px;
-        background: #e8434c;
-        color: #fff;
-        padding: 1px 6px;
-        border-radius: 4px;
-        margin-left: 8px;
-        vertical-align: 1px;
-      }
-      .trio {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-        margin-top: 56px;
-      }
-      .note {
-        background: #fff;
-        border-radius: 18px;
-        padding: 26px;
-        box-shadow: 0 0 0 1px rgba(31, 26, 20, 0.07);
-      }
-      .note .ic {
-        width: 38px;
-        height: 38px;
-        border-radius: 12px;
-        display: grid;
-        place-items: center;
-        background: var(--cream-2);
-        color: var(--warm);
-        margin: 0 auto 16px;
-      }
-      .note .ic svg.i {
-        width: 19px;
-        height: 19px;
-      }
-      .note h3 {
-        margin: 0 0 6px;
-        font-size: 17px;
-        font-weight: 600;
-      }
-      .note p {
-        margin: 0;
-        color: var(--ink-2);
-        font-size: 15px;
-        line-height: 1.55;
-      }
-      .faq {
-        max-width: 760px;
-        margin: 48px auto 0;
-        display: grid;
-        gap: 10px;
-        text-align: left;
-      }
-      .faq details {
-        background: #fff;
-        border-radius: 14px;
-        padding: 18px 22px;
-        box-shadow: 0 0 0 1px rgba(31, 26, 20, 0.07);
-      }
-      .faq summary {
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 16px;
-        list-style: none;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .faq summary::-webkit-details-marker {
-        display: none;
-      }
-      .faq summary::after {
-        content: "+";
-        margin-left: auto;
-        color: var(--ink-3);
-        font-size: 20px;
-      }
-      .faq details[open] summary::after {
-        content: "\2013";
-      }
-      .faq p {
-        margin: 10px 0 0;
-        color: var(--ink-2);
-        line-height: 1.6;
-      }
-      .final {
-        position: relative;
-        margin-top: 120px;
-        padding: 130px 24px 150px;
-        text-align: center;
-        overflow: hidden;
-        background: linear-gradient(180deg, var(--cream) 0%, #f6b47e 30%, #a8566f 62%, #2a2a63 100%);
-      }
-      .final h2 {
-        color: #f7f1ea;
-      }
-      .final h2 .serif {
-        color: var(--gold);
-      }
-      .final .btn {
-        margin-top: 34px;
-        background: #fbf6ee;
-        color: var(--ink);
-      }
-      footer {
-        background: #2a2a63;
         color: rgba(255, 255, 255, 0.7);
-        font-size: 13px;
       }
-      footer .wrap {
+      .going {
         display: flex;
-        gap: 20px;
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 0 80px 34px;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        color: rgba(255, 255, 255, 0.88);
       }
-      footer a:hover {
-        color: #fff;
+      .going .rec {
+        animation: pulse 1s ease-in-out infinite;
       }
-      footer .r {
-        margin-left: auto;
-        display: flex;
-        gap: 18px;
+      @keyframes pulse {
+        50% {
+          box-shadow: 0 0 0 8px rgba(255, 77, 87, 0.05);
+        }
       }
-
-      @media (max-width: 900px) {
-        nav {
-          padding: 18px 20px;
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 520px) {
+        main {
+          gap: 30px;
         }
-        nav .links {
-          display: none;
+        form {
+          flex-direction: column;
+          align-items: stretch;
+          padding: 8px;
         }
-        h1 {
-          font-size: 40px;
+        button {
+          height: 50px;
         }
-        h1 .serif {
-          font-size: 44px;
+        input {
+          height: 48px;
+          text-align: center;
         }
-        .lede {
-          font-size: 16px;
-        }
-        .product {
-          height: 180px;
-        }
-        .sky {
-          padding-bottom: 60px;
-        }
-        .haze {
-          height: 190px;
-        }
-        .cta-zone {
-          margin-top: -96px;
-        }
-        section {
-          padding: 80px 20px 20px;
-        }
-        h2 {
-          font-size: 34px;
-        }
-        h2 .serif {
-          font-size: 38px;
-        }
-        .copy {
-          font-size: 16px;
-        }
-        .two {
-          grid-template-columns: 1fr;
-          gap: 32px;
-        }
-        .two .frame {
-          order: 2;
-        }
-        .trio {
-          grid-template-columns: 1fr;
-          margin-top: 36px;
-        }
-        .final {
-          margin-top: 80px;
-          padding: 100px 20px 110px;
-        }
-        footer .wrap {
-          padding: 0 20px 28px;
+        .hint {
+          margin-top: -14px;
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        .stars,
-        .mark,
-        .cursor {
+        .going .rec,
+        .star,
+        .mark {
           animation: none;
-        }
-        html {
-          scroll-behavior: auto;
         }
       }
     </style>
+    <script type="module" src="/landing.js"></script>
   </head>
   <body>
-    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
-      <defs>
-        <symbol id="mk" viewBox="0 0 146 145">
-          <path
-            d="M69.528 1.96636C71.0759 -0.655453 74.869 -0.655453 76.4169 1.96636L91.0103 26.6837C91.3538 27.2656 91.8392 27.751 92.4211 28.0945L117.138 42.6879C119.76 44.2358 119.76 48.0289 117.138 49.5768L92.4211 64.1702C91.8392 64.5137 91.3538 64.9991 91.0103 65.581L76.4169 90.2983C74.869 92.9201 71.0759 92.9201 69.528 90.2983L54.9347 65.581C54.5911 64.9991 54.1057 64.5137 53.5238 64.1702L28.8065 49.5768C26.1847 48.0289 26.1847 44.2358 28.8065 42.6879L53.5238 28.0945C54.1057 27.751 54.5911 27.2656 54.9347 26.6837L69.528 1.96636Z"
-          />
-          <path
-            d="M49.6983 66.5562L21.6836 116.174C19.802 119.507 22.2098 123.632 26.0372 123.632H39.9727L54.9727 100.132L66.9727 119.632L51.9727 144.132H26.0372C6.24066 144.132 -6.29344 122.89 3.27837 105.561L30.9405 55.4819L49.6983 66.5562Z"
-          />
-          <path
-            d="M142.666 105.561C152.238 122.89 139.704 144.132 119.907 144.132H93.9728L78.9728 119.632L90.9728 100.132L105.973 123.632H119.907C123.735 123.632 126.143 119.507 124.261 116.174L96.2462 66.5562L115.004 55.4819L142.666 105.561Z"
-          />
-        </symbol>
-        <symbol id="i-star" viewBox="0 0 24 24">
-          <path
-            d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
-          />
-        </symbol>
-        <symbol id="i-volume" viewBox="0 0 24 24">
-          <path
-            d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"
-          />
-          <path d="M16 9a5 5 0 0 1 0 6" />
-          <path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
-        </symbol>
-        <symbol id="i-mic" viewBox="0 0 24 24">
-          <path d="M12 19v3" />
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-          <rect x="9" y="2" width="6" height="13" rx="3" />
-        </symbol>
-        <symbol id="i-mic-off" viewBox="0 0 24 24">
-          <path d="M12 19v3" />
-          <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
-          <path d="M16.95 16.95A7 7 0 0 1 5 12v-2" />
-          <path d="M18.89 13.23A7 7 0 0 0 19 12v-2" />
-          <path d="m2 2 20 20" />
-          <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
-        </symbol>
-        <symbol id="i-headphones" viewBox="0 0 24 24">
-          <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3" />
-        </symbol>
-        <symbol id="i-audio" viewBox="0 0 24 24">
-          <path d="M2 10v3" />
-          <path d="M6 6v11" />
-          <path d="M10 3v18" />
-          <path d="M14 8v7" />
-          <path d="M18 5v13" />
-          <path d="M22 10v3" />
-        </symbol>
-        <symbol id="i-type" viewBox="0 0 24 24">
-          <path d="M12 4v16" />
-          <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" />
-          <path d="M9 20h6" />
-        </symbol>
-        <symbol id="i-monitor" viewBox="0 0 24 24">
-          <rect width="20" height="14" x="2" y="3" rx="2" />
-          <line x1="8" x2="16" y1="21" y2="21" />
-          <line x1="12" x2="12" y1="17" y2="21" />
-        </symbol>
-      </defs>
-    </svg>
-
-    <div class="sky">
-      <div class="stars"></div>
+    <div class="sky" aria-hidden="true">
       <div class="glow"></div>
-      <nav aria-label="Main">
-        <span class="links"><a href="#game">Game night</a><a href="#code">Code</a><a href="#faq">FAQ</a></span>
-        <a class="gh" href="https://github.com/the-ptf/live"
-          ><svg class="i"><use href="#i-star" /></svg>Star on GitHub</a
-        >
-      </nav>
-      <header class="hero">
-        <svg class="mark" viewBox="0 0 146 145" fill="#fff5f0" role="img" aria-label="Milagre Live"><use href="#mk" /></svg>
-        <h1>Your squad is watching.<span class="serif">Play it live.</span></h1>
-        <p class="lede">
-          Share your Valorant match in 1080p at 60 with the game's sound, talk over a clean mic, and send one link. No accounts, nothing to install.
-        </p>
-      </header>
-      <div class="product" aria-hidden="true">
-        <div class="call">
-          <div class="stage">
-            <div class="game">
-              <div class="sun"></div>
-              <div class="w1"></div>
-              <div class="w3"></div>
-              <div class="w2"></div>
-              <div class="cross"></div>
-              <div class="hud"><b class="t">11</b><b>1:12</b><b class="e">9</b></div>
-            </div>
-            <div class="people">
-              <div class="person speaking">
-                <div class="bot" style="background: #ff6a1a"></div>
-                <span class="name"
-                  ><svg class="i"><use href="#i-mic" /></svg>Rafa</span
-                >
-              </div>
-              <div class="person cam">
-                <div class="face"></div>
-                <span class="name"
-                  ><svg class="i"><use href="#i-mic" /></svg>Bia</span
-                >
-              </div>
-              <div class="person">
-                <div class="bot" style="background: #8b5cf6"></div>
-                <span class="name"
-                  ><svg class="i" style="color: #fd696d"><use href="#i-mic-off" /></svg>Tião</span
-                >
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="haze"></div>
+      <i class="star" style="left: 33.1%; top: 11.1%; --s: 2px; --d: 2.7s; --delay: -5.7s; --low: 0.13"></i>
+      <i class="star" style="left: 57.9%; top: 56.6%; --s: 1px; --d: 2.7s; --delay: -3s; --low: 0.12"></i>
+      <i class="star big" style="left: 10.7%; top: 27.5%; --s: 2.5px; --d: 5s; --delay: -6.6s; --low: 0.32"></i>
+      <i class="star" style="left: 58%; top: 5.7%; --s: 1.5px; --d: 4.3s; --delay: -6.8s; --low: 0.12"></i>
+      <i class="star" style="left: 84.4%; top: 19.4%; --s: 1px; --d: 4.9s; --delay: -4s; --low: 0.3"></i>
+      <i class="star" style="left: 67.5%; top: 8.2%; --s: 1.5px; --d: 5.4s; --delay: -2.6s; --low: 0.29"></i>
+      <i class="star" style="left: 8%; top: 5.6%; --s: 1px; --d: 4.7s; --delay: -3.7s; --low: 0.37"></i>
+      <i class="star" style="left: 46.7%; top: 57.4%; --s: 1px; --d: 3.8s; --delay: -5.6s; --low: 0.34"></i>
+      <i class="star" style="left: 25.4%; top: 36.5%; --s: 1.5px; --d: 4.7s; --delay: -2.4s; --low: 0.26"></i>
+      <i class="star" style="left: 60.5%; top: 6.4%; --s: 1.5px; --d: 4.4s; --delay: -5.3s; --low: 0.15"></i>
+      <i class="star" style="left: 48.9%; top: 4.4%; --s: 2px; --d: 2.8s; --delay: -3.9s; --low: 0.38"></i>
+      <i class="star" style="left: 80.6%; top: 22.4%; --s: 1px; --d: 5.2s; --delay: -4.1s; --low: 0.26"></i>
+      <i class="star" style="left: 82.6%; top: 58.7%; --s: 1.5px; --d: 5.6s; --delay: -0.5s; --low: 0.36"></i>
+      <i class="star" style="left: 31.7%; top: 36.7%; --s: 2px; --d: 6.2s; --delay: -2s; --low: 0.24"></i>
+      <i class="star" style="left: 66.2%; top: 3.4%; --s: 1.5px; --d: 4.1s; --delay: -4.3s; --low: 0.27"></i>
+      <i class="star" style="left: 22.9%; top: 19.2%; --s: 2px; --d: 3.6s; --delay: -2.7s; --low: 0.4"></i>
+      <i class="star" style="left: 9.7%; top: 29%; --s: 1.5px; --d: 3.8s; --delay: -1s; --low: 0.25"></i>
+      <i class="star" style="left: 54.8%; top: 44.4%; --s: 1px; --d: 5.6s; --delay: -2.7s; --low: 0.18"></i>
+      <i class="star" style="left: 10%; top: 11.1%; --s: 2px; --d: 3.6s; --delay: -3.4s; --low: 0.31"></i>
+      <i class="star" style="left: 27.2%; top: 2.2%; --s: 1.5px; --d: 4.9s; --delay: -4.3s; --low: 0.21"></i>
+      <i class="star" style="left: 14%; top: 53.6%; --s: 1.5px; --d: 5.4s; --delay: -5.2s; --low: 0.26"></i>
+      <i class="star" style="left: 85.6%; top: 59.1%; --s: 2px; --d: 6.1s; --delay: -2.7s; --low: 0.24"></i>
+      <i class="star" style="left: 11.9%; top: 40.1%; --s: 1px; --d: 3.4s; --delay: -6.9s; --low: 0.25"></i>
+      <i class="star" style="left: 12.6%; top: 38%; --s: 1px; --d: 2.5s; --delay: -1.1s; --low: 0.14"></i>
+      <i class="star big" style="left: 36.9%; top: 3.5%; --s: 2.5px; --d: 3.4s; --delay: -2.6s; --low: 0.32"></i>
+      <i class="star" style="left: 93.7%; top: 38.1%; --s: 1.5px; --d: 3.1s; --delay: -5.9s; --low: 0.45"></i>
+      <i class="star" style="left: 46.7%; top: 31%; --s: 1px; --d: 3.1s; --delay: -5.2s; --low: 0.36"></i>
+      <i class="star" style="left: 47.9%; top: 43.5%; --s: 1.5px; --d: 2.6s; --delay: -6.7s; --low: 0.28"></i>
+      <i class="star" style="left: 16.1%; top: 34.6%; --s: 1px; --d: 5.9s; --delay: -2.1s; --low: 0.33"></i>
+      <i class="star" style="left: 10.7%; top: 52.7%; --s: 1.5px; --d: 4.2s; --delay: -1.2s; --low: 0.37"></i>
+      <i class="star" style="left: 53.1%; top: 48.7%; --s: 1px; --d: 5.4s; --delay: -4.3s; --low: 0.38"></i>
+      <i class="star" style="left: 74.8%; top: 13.7%; --s: 1px; --d: 6.2s; --delay: -5.2s; --low: 0.18"></i>
+      <i class="star" style="left: 51.7%; top: 23.3%; --s: 1px; --d: 7s; --delay: -5.5s; --low: 0.27"></i>
+      <i class="star" style="left: 20.6%; top: 38.3%; --s: 1px; --d: 4.5s; --delay: -6.6s; --low: 0.45"></i>
+      <i class="star" style="left: 93.7%; top: 23.9%; --s: 1px; --d: 3s; --delay: -3.3s; --low: 0.22"></i>
+      <i class="star" style="left: 48.3%; top: 61.1%; --s: 1.5px; --d: 6.3s; --delay: -3.4s; --low: 0.33"></i>
+      <i class="star" style="left: 78.8%; top: 7.1%; --s: 2px; --d: 3s; --delay: -2.7s; --low: 0.35"></i>
+      <i class="star" style="left: 21.1%; top: 55.3%; --s: 1.5px; --d: 6.1s; --delay: -2.3s; --low: 0.38"></i>
+      <i class="star" style="left: 95.3%; top: 25.8%; --s: 1.5px; --d: 5.8s; --delay: -0.6s; --low: 0.16"></i>
+      <i class="star" style="left: 97.3%; top: 3.7%; --s: 1.5px; --d: 6.6s; --delay: -5.6s; --low: 0.15"></i>
+      <i class="star" style="left: 81.3%; top: 60.8%; --s: 2px; --d: 6.7s; --delay: -1.1s; --low: 0.29"></i>
+      <i class="star" style="left: 4.1%; top: 50%; --s: 2px; --d: 5.4s; --delay: -3.7s; --low: 0.43"></i>
+      <i class="star big" style="left: 43.6%; top: 54.3%; --s: 2.5px; --d: 6.4s; --delay: -0.2s; --low: 0.17"></i>
+      <i class="star" style="left: 50.1%; top: 47.8%; --s: 1px; --d: 3.7s; --delay: -2.9s; --low: 0.15"></i>
+      <i class="star" style="left: 89.4%; top: 23.2%; --s: 1.5px; --d: 5.5s; --delay: -5.7s; --low: 0.28"></i>
+      <i class="star" style="left: 81.4%; top: 54.7%; --s: 1px; --d: 4.9s; --delay: -3.7s; --low: 0.11"></i>
+      <i class="star" style="left: 44.3%; top: 13%; --s: 1px; --d: 6s; --delay: -1s; --low: 0.15"></i>
+      <i class="star" style="left: 61.4%; top: 9.2%; --s: 1px; --d: 4s; --delay: -3.6s; --low: 0.29"></i>
+      <i class="star" style="left: 77.3%; top: 8.4%; --s: 1.5px; --d: 2.8s; --delay: -1.3s; --low: 0.11"></i>
+      <i class="star" style="left: 11.4%; top: 29.1%; --s: 1px; --d: 5.9s; --delay: -6.4s; --low: 0.26"></i>
+      <i class="star" style="left: 60.8%; top: 32.3%; --s: 1.5px; --d: 3.4s; --delay: -1.9s; --low: 0.28"></i>
+      <i class="star" style="left: 79.5%; top: 32.5%; --s: 1px; --d: 5.6s; --delay: -6.1s; --low: 0.43"></i>
+      <i class="star" style="left: 26.9%; top: 35.6%; --s: 1px; --d: 6.3s; --delay: -1s; --low: 0.14"></i>
+      <i class="star" style="left: 44.4%; top: 6.4%; --s: 1px; --d: 4.4s; --delay: -1.5s; --low: 0.21"></i>
+      <i class="star" style="left: 13.7%; top: 48.6%; --s: 2px; --d: 5.4s; --delay: -2.6s; --low: 0.19"></i>
+      <i class="star" style="left: 15.2%; top: 30.1%; --s: 2px; --d: 6.8s; --delay: -2.8s; --low: 0.27"></i>
+      <i class="star" style="left: 97%; top: 51.9%; --s: 1px; --d: 5.7s; --delay: -7s; --low: 0.24"></i>
+      <i class="star" style="left: 42.4%; top: 23.4%; --s: 1px; --d: 5.7s; --delay: -0.1s; --low: 0.29"></i>
+      <i class="star" style="left: 44.3%; top: 3.1%; --s: 1px; --d: 4.8s; --delay: -2.1s; --low: 0.44"></i>
+      <i class="star" style="left: 12.8%; top: 57.1%; --s: 1px; --d: 6.9s; --delay: -0.7s; --low: 0.19"></i>
+      <i class="star" style="left: 5.8%; top: 48.7%; --s: 1px; --d: 5.9s; --delay: -5.7s; --low: 0.4"></i>
+      <i class="star" style="left: 66.9%; top: 58.8%; --s: 1.5px; --d: 3.2s; --delay: -6.4s; --low: 0.3"></i>
+      <i class="star" style="left: 69.2%; top: 7.4%; --s: 1px; --d: 6.1s; --delay: -1.3s; --low: 0.41"></i>
+      <i class="star" style="left: 27.8%; top: 3%; --s: 1px; --d: 6.1s; --delay: -0.6s; --low: 0.4"></i>
+      <i class="star" style="left: 8.4%; top: 53.8%; --s: 1.5px; --d: 2.6s; --delay: -7s; --low: 0.25"></i>
+      <i class="star" style="left: 89.9%; top: 39.3%; --s: 1px; --d: 4.9s; --delay: -1.7s; --low: 0.14"></i>
+      <i class="star" style="left: 17.5%; top: 5%; --s: 1px; --d: 6.7s; --delay: -4.4s; --low: 0.29"></i>
+      <i class="star" style="left: 21.8%; top: 28.7%; --s: 2px; --d: 3.3s; --delay: -2.4s; --low: 0.11"></i>
+      <i class="star" style="left: 26%; top: 2.9%; --s: 2px; --d: 4.8s; --delay: -6.8s; --low: 0.28"></i>
+      <i class="star" style="left: 25.6%; top: 28.8%; --s: 2px; --d: 6.2s; --delay: -3s; --low: 0.27"></i>
+      <div class="horizon"></div>
     </div>
-    <div class="cta-zone">
-      <a class="btn" href="/start"><span class="rec"></span>Start a room</a>
-      <div class="under">Chrome and Edge <i>·</i> Up to 16 people <i>·</i> Free</div>
-    </div>
-
     <main>
-      <section class="two" id="game">
-        <div>
-          <h2>Every clutch.<span class="serif">Every frame, at 60.</span></h2>
-          <p class="copy">
-            Pick the quality while you share: 720p for a weak connection, 1080p at 60 for the ranked game, or your screen's own size. Smooth motion keeps frames
-            coming when the network gets tight.
-          </p>
-        </div>
-        <div class="frame">
-          <div class="quality">
-            <div class="qrow"><b>720p · 30 fps</b><span>2.5 Mbps</span></div>
-            <div class="qrow"><b>1080p · 30 fps</b><span>4 Mbps</span></div>
-            <div class="qrow on"><span class="dot" style="margin: 0"></span><b>1080p · 60 fps</b><span>6 Mbps</span></div>
-            <div class="qrow"><b>Source · 60 fps</b><span>8 Mbps</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="center">
-        <h2>They hear the round.<span class="serif">Not themselves.</span></h2>
-        <p class="copy">
-          Share a screen or a tab with its sound. The call stays out of what you send, so your squad gets the footsteps and the spike, never an echo of their
-          own voice.
-        </p>
-        <div class="trio">
-          <div class="note">
-            <div class="ic">
-              <svg class="i"><use href="#i-volume" /></svg>
-            </div>
-            <h3>Game sound on</h3>
-            <p>Turn on Share audio in the picker. Viewers hear it like they're in your headset.</p>
-          </div>
-          <div class="note">
-            <div class="ic">
-              <svg class="i"><use href="#i-audio" /></svg>
-            </div>
-            <h3>Noise suppression</h3>
-            <p>RNNoise drops the keyboard, the fan and the dog before your voice leaves your computer.</p>
-          </div>
-          <div class="note">
-            <div class="ic">
-              <svg class="i"><use href="#i-headphones" /></svg>
-            </div>
-            <h3>Deafen in one click</h3>
-            <p>Mute is instant and never cuts other sound. Deafen when the round gets serious.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="two" id="code">
-        <div class="frame editor" aria-label="Code shared in sharp-text mode">
-          <div class="bar">
-            <span class="light"></span><span class="light"></span><span class="light"></span><span class="file">room.mjs</span
-            ><span class="mode"
-              ><svg class="i" style="width: 13px; height: 13px"><use href="#i-type" /></svg>Sharp text</span
-            >
-          </div>
-          <div class="code">
-            <div class="ln">
-              <span class="n">41</span><span><span class="k">export function</span> <span class="f">createRoom</span>({ io, store }) {</span>
-            </div>
-            <div class="ln">
-              <span class="n">42</span
-              ><span
-                >&nbsp;&nbsp;<span class="k">const</span> peers = () =&gt; io.<span class="f">list</span>().<span class="f">filter</span>((e) =&gt;
-                e.peer);</span
-              >
-            </div>
-            <div class="ln">
-              <span class="n">43</span><span>&nbsp;&nbsp;<span class="c">// everyone hears the roster change</span></span>
-            </div>
-            <div class="ln hl">
-              <span class="n">44</span
-              ><span
-                >&nbsp;&nbsp;<span class="k">const</span> broadcast = (event = <span class="s">"change"</span>) =&gt; {<span class="cursor"></span
-                ><span class="who">Bia</span></span
-              >
-            </div>
-            <div class="ln">
-              <span class="n">45</span
-              ><span
-                >&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">for</span> (<span class="k">const</span> { socket } <span class="k">of</span>
-                <span class="f">peers</span>())</span
-              >
-            </div>
-            <div class="ln">
-              <span class="n">46</span
-              ><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;io.<span class="f">send</span>(socket, <span class="f">roster</span>(event));</span>
-            </div>
-            <div class="ln"><span class="n">47</span><span>&nbsp;&nbsp;};</span></div>
-            <div class="ln">
-              <span class="n">48</span
-              ><span>&nbsp;&nbsp;<span class="k">return</span> { join, leave, <span class="v">MAX_PEERS</span>: <span class="v">16</span> };</span>
-            </div>
-            <div class="ln"><span class="n">49</span><span>}</span></div>
-          </div>
-        </div>
-        <div>
-          <h2>Pair on code.<span class="serif">Every character sharp.</span></h2>
-          <p class="copy">
-            Switch the share to sharp text and it keeps resolution over frame rate, so the 0 never turns into an O. Talk it through, point at the line, ship it.
-          </p>
-        </div>
-      </section>
-
-      <section class="two">
-        <div>
-          <h2>Your mix.<span class="serif">Turn Rafa down a little.</span></h2>
-          <p class="copy">Every voice and every stream gets its own slider, and only you hear the change. It remembers your friends by name next time.</p>
-        </div>
-        <div class="frame" aria-hidden="true">
-          <div class="meter">
-            <div class="mrow">
-              <div class="avatar" style="background: #ff6a1a"></div>
-              <div class="track"><i style="width: 45%"></i><b style="left: 45%"></b></div>
-              <small>45%</small>
-            </div>
-            <div class="mrow">
-              <div class="avatar" style="background: #4b5d78"></div>
-              <div class="track"><i style="width: 100%"></i><b style="left: 100%"></b></div>
-              <small>100%</small>
-            </div>
-            <div class="mrow">
-              <div class="avatar" style="background: #8b5cf6"></div>
-              <div class="track"><i style="width: 80%"></i><b style="left: 80%"></b></div>
-              <small>80%</small>
-            </div>
-            <div class="mrow">
-              <div class="avatar" style="background: #172232; color: #e9eff7">
-                <svg class="i" style="width: 18px; height: 18px"><use href="#i-monitor" /></svg>
-              </div>
-              <div class="track"><i style="width: 30%"></i><b style="left: 30%"></b></div>
-              <small>30%</small>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="center" id="faq">
-        <h2>Before you hop in.<span class="serif">A few answers.</span></h2>
-        <div class="faq">
-          <details open>
-            <summary>Do my friends need an account?</summary>
-            <p>No. They open your link, type a name and they're in. There is nothing to install.</p>
-          </details>
-          <details>
-            <summary>Is it really free?</summary>
-            <p>Yes, while it's in beta. It runs on Cloudflare's network, close to wherever your squad plays.</p>
-          </details>
-          <details>
-            <summary>Can I share my game with sound?</summary>
-            <p>Yes, in Chrome and Edge. Turn on Share audio in the picker, or share a single tab to send just its sound.</p>
-          </details>
-          <details>
-            <summary>Does it work on my phone?</summary>
-            <p>Yes for watching, talking and your camera. Phones can't share their screen from a browser, so share from a computer.</p>
-          </details>
-          <details>
-            <summary>Who can get into my room?</summary>
-            <p>Anyone with the link. You're the host when you start it, and you can remove anyone. The room disappears when everyone leaves.</p>
-          </details>
-        </div>
-      </section>
+      <h1>Milagre Live: share your game or your code, live</h1>
+      <svg class="mark" viewBox="0 0 146 145" fill="#fff5f0" aria-hidden="true">
+        <path
+          d="M69.528 1.96636C71.0759 -0.655453 74.869 -0.655453 76.4169 1.96636L91.0103 26.6837C91.3538 27.2656 91.8392 27.751 92.4211 28.0945L117.138 42.6879C119.76 44.2358 119.76 48.0289 117.138 49.5768L92.4211 64.1702C91.8392 64.5137 91.3538 64.9991 91.0103 65.581L76.4169 90.2983C74.869 92.9201 71.0759 92.9201 69.528 90.2983L54.9347 65.581C54.5911 64.9991 54.1057 64.5137 53.5238 64.1702L28.8065 49.5768C26.1847 48.0289 26.1847 44.2358 28.8065 42.6879L53.5238 28.0945C54.1057 27.751 54.5911 27.2656 54.9347 26.6837L69.528 1.96636Z"
+        />
+        <path
+          d="M49.6983 66.5562L21.6836 116.174C19.802 119.507 22.2098 123.632 26.0372 123.632H39.9727L54.9727 100.132L66.9727 119.632L51.9727 144.132H26.0372C6.24066 144.132 -6.29344 122.89 3.27837 105.561L30.9405 55.4819L49.6983 66.5562Z"
+        />
+        <path
+          d="M142.666 105.561C152.238 122.89 139.704 144.132 119.907 144.132H93.9728L78.9728 119.632L90.9728 100.132L105.973 123.632H119.907C123.735 123.632 126.143 119.507 124.261 116.174L96.2462 66.5562L115.004 55.4819L142.666 105.561Z"
+        />
+      </svg>
+      <form id="start">
+        <input id="name" name="name" placeholder="Your name" maxlength="40" autocomplete="name" aria-label="Your name" />
+        <button type="submit"><span class="rec"></span>Start room</button>
+      </form>
+      <p class="hint" id="hint">Free · no account · share the link and they're in</p>
+      <p class="going" id="going" hidden><span class="rec"></span>Opening your room…</p>
     </main>
-
-    <div class="final">
-      <h2>Start a room.<span class="serif">Then go play.</span></h2>
-      <a class="btn" href="/start"><span class="rec"></span>Start a room</a>
-    </div>
-    <footer>
-      <div class="wrap">
-        <span>Milagre Live, from <a href="https://milagre.dev">Milagre</a></span>
-        <div class="r"><a href="https://github.com/the-ptf/live">GitHub</a></div>
-      </div>
-    </footer>
   </body>
 </html>

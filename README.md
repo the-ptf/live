@@ -20,4 +20,4 @@ npm run e2e        # real headless browsers against LIVE_URL (default http://loc
 ```
 
 Node 22 or later. MIT licensed; `apps/web/src/bots.json` holds Open Bot Avatar's gallery under its own MIT notice, and RNNoise comes from
-`@sapphi-red/web-noise-suppressor` (MIT). The landing page's fonts, Geist and Instrument Serif, are under the SIL Open Font License.
+`@sapphi-red/web-noise-suppressor` (MIT). The landing page's font, Geist, is under the SIL Open Font License.
