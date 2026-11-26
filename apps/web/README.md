@@ -61,6 +61,11 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   day's joins, rooms started and peak. Each room reports its roster on every change to one `LiveStats` Durable Object;
   a room silent for 12 hours drops off. The page signs in with the `DASH_PASSWORD` secret and keeps a 30-day HttpOnly
   cookie signed with it, so changing the password signs everyone out.
+- The Cost section and the video chart read what Cloudflare billed, not the estimate: `LiveStats` asks the GraphQL
+  Analytics API for Realtime SFU and TURN egress per day (`callsUsageAdaptiveGroups`, `callsTurnUsageAdaptiveGroups`)
+  at most every 5 minutes and keeps each month's total, since the API only reaches back about 90 days. Cost is the
+  egress past 1,000 GB a month at $0.05/GB (`usage.mjs`); TURN is free next to the SFU. Without `CF_ANALYTICS_TOKEN`
+  the page falls back to the estimate.
 - The browser opens its Realtime session with a data channel and waits until it's connected before pushing or pulling:
   Realtime refuses either on a session that isn't connected, and Chrome rejects the answer to an idle audio or video
   line. A dropped connection rejoins quietly.
@@ -95,6 +100,10 @@ python3 -c 'import json,os; print(json.dumps({k: os.environ[k] for k in ("REALTI
 `DASH_PASSWORD` lives on its own in `~/.private_keys/live-dash-password` (raw, mode 600): it has characters a shell or
 `.env` parser would mangle, so set it with Python piping into `wrangler secret bulk`, never by sourcing it. Locally,
 pass a throwaway one: `--var DASH_PASSWORD:local-test-pass`.
+
+`CF_ANALYTICS_TOKEN` is a token named `milagre-live-analytics` with only **Account Analytics: Read**, and
+`CF_ACCOUNT_ID` the account it reads. The token lives raw in `~/.private_keys/live-analytics-token`; set both the
+same way as `DASH_PASSWORD`. Never give the Worker the broader account token.
 
 ## Run and deploy
 

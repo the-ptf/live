@@ -132,6 +132,35 @@ const BLUE = "#3e9afd";
 const GREEN = "#3cbb72";
 const PURPLE = "#ad46ff";
 
+const usd = (value) => `$${value < 10 ? value.toFixed(2) : Math.round(value).toLocaleString("en-US")}`;
+const gbText = (value) => `${round(value)} GB`;
+
+/** Cloudflare's real video per day when the analytics token is set; the page's own upper bound otherwise. */
+function videoChart(snapshot) {
+  const real = snapshot.usage?.days;
+  if (!real?.length) return chartCard("Video per day", '<span class="muted">GB, at most</span>', barChart(snapshot.days, "gb", PURPLE));
+  const byDate = new Map(real.map((day) => [day.date, day.bytes / 1e9]));
+  const days = snapshot.days.map((day) => ({ ...day, sent: byDate.get(day.date) ?? 0 }));
+  return chartCard("Video per day", '<span class="muted">GB sent, from Cloudflare</span>', barChart(days, "sent", PURPLE));
+}
+
+/** What Realtime has cost: Cloudflare's own numbers when the analytics token is set, else the page's estimate. */
+function costCards(snapshot) {
+  const usage = snapshot.usage;
+  const card = (value, label) => `<div class="card"><b>${escape(value)}</b><span>${escape(label)}</span></div>`;
+  if (!usage) {
+    const billable = Math.max(0, snapshot.monthGb - 1000);
+    return `<h2>Cost</h2><div class="cards">${card(usd(billable * 0.05), "This month, estimated")}${card(gbText(snapshot.monthGb), "Video this month, at most, of 1,000 free")}</div><p class="muted">Set CF_ANALYTICS_TOKEN to see what Cloudflare measured.</p>`;
+  }
+  const month = new Date().toISOString().slice(0, 7);
+  const current = usage.cost.months.find((row) => row.month === month) ?? { gb: 0, cost: 0, freeLeftGb: 1000 };
+  const turn = usage.days.filter((day) => day.date.startsWith(month)).reduce((sum, day) => sum + day.turnBytes, 0) / 1e9;
+  const since = usage.cost.months[0]?.month;
+  const checked = usage.at ? `Cloudflare, checked ${Math.max(0, Math.round((Date.now() - usage.at) / 60000))} min ago` : "Cloudflare";
+  return `<h2>Cost <span class="muted">${escape(checked)}${usage.error ? ` · last check failed: ${escape(usage.error)}` : ""}</span></h2>
+<div class="cards">${card(usd(current.cost), "This month")}${card(usd(usage.cost.totalCost), since ? `So far, since ${since}` : "So far")}${card(gbText(current.gb), "Video sent this month")}${card(gbText(current.freeLeftGb), "Free left this month, of 1,000 GB")}${card(gbText(turn), "Relayed by TURN, free")}</div>`;
+}
+
 function charts(snapshot) {
   return `<div class="charts">${chartCard(
     "Last 24 hours",
@@ -145,7 +174,7 @@ function charts(snapshot) {
     ]),
   )}
 ${chartCard("Joins per day", '<span class="muted">last 14 days, UTC</span>', barChart(snapshot.days, "joins", BLUE))}
-${chartCard("Video per day", '<span class="muted">GB, at most</span>', barChart(snapshot.days, "gb", PURPLE))}
+${videoChart(snapshot)}
 ${chartCard("Most people at once", '<span class="muted">per day</span>', barChart(snapshot.days, "peak", GREEN))}</div>`;
 }
 
@@ -174,7 +203,8 @@ export function renderDash(snapshot, now) {
     "Milagre Live stats",
     `<main><header><h1>Milagre Live</h1><span class="muted">Updates every 10 seconds</span><form method="post" action="/dash/logout"><button type="submit">Sign out</button></form></header>
 <div class="cards">${card(totals.rooms, "Rooms open")}${card(totals.people, "People live")}${card(totals.cameras, "Cameras on")}${card(totals.screens, "Screens shared")}${card(totals.mics ?? 0, "Mics on")}${card(`${totals.gbPerHour.toFixed(1)} GB/h`, "Video right now, at most")}</div>
-<h2>Today (UTC)</h2><div class="cards">${card(today.joins, "Joins")}${card(today.rooms, "Rooms started")}${card(today.peak, "Most people at once")}${card(yesterday.joins, "Joins yesterday")}${card(`${round(snapshot.monthGb)} GB`, "Video this month, at most, of 1,000 free")}</div>
+<h2>Today (UTC)</h2><div class="cards">${card(today.joins, "Joins")}${card(today.rooms, "Rooms started")}${card(today.peak, "Most people at once")}${card(yesterday.joins, "Joins yesterday")}</div>
+${costCards(snapshot)}
 ${charts(snapshot)}
 <h2>Open rooms</h2>${table}</main>`,
     true,

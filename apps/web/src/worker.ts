@@ -13,6 +13,7 @@ import rnnoise from "../dist/rnnoise.bin";
 import rnnoiseSimd from "../dist/rnnoise_simd.bin";
 import { createRoom, FALLBACK_ICE, ROOM_ID, type Answer, type IceServer, type Peer, type Room } from "./room.mjs";
 import { createStats, type Report } from "./stats.mjs";
+import { costOf, daysFrom, USAGE_QUERY, type UsageDay } from "./usage.mjs";
 import { passwordMatches, renderDash, renderLogin, sessionCookie, signedIn, signOutCookie } from "./dash.mjs";
 
 interface Env {
@@ -25,6 +26,8 @@ interface Env {
   REALTIME_APP_TOKEN?: string;
   TURN_KEY_ID?: string;
   TURN_KEY_TOKEN?: string;
+  CF_ACCOUNT_ID?: string;
+  CF_ANALYTICS_TOKEN?: string;
 }
 
 const REALTIME = "https://rtc.live.cloudflare.com/v1";
@@ -282,11 +285,25 @@ export class LiveRoom implements DurableObject {
 
 const reply = ({ status, body }: Answer) => json(body, status);
 
-/** Every room's last roster and the day's counts, for `/dash`. One object for the whole service. */
+const USAGE_EVERY_MS = 5 * 60 * 1000;
+// Cloudflare keeps Realtime analytics for a limited window; months older than it come from what this object stored.
+const USAGE_WINDOW_DAYS = 89;
+const LIVE_SINCE = "2026-11-01";
+
+/**
+ * Every room's last roster and the day's counts, for `/dash`, and what Cloudflare reports Realtime sent: fetched at
+ * most every five minutes with a read-only analytics token, with each month's total kept so the cost so far survives
+ * Cloudflare's retention.
+ */
 export class LiveStats implements DurableObject {
   private readonly stats;
-  constructor(state: DurableObjectState) {
+  private readonly kv;
+  constructor(
+    state: DurableObjectState,
+    private readonly env: Env,
+  ) {
     const kv = state.storage.kv;
+    this.kv = kv;
     this.stats = createStats({
       store: {
         get: (key) => kv.get<string>(key),
@@ -305,7 +322,38 @@ export class LiveStats implements DurableObject {
       this.stats.report((await request.json()) as Report);
       return new Response(null, { status: 204 });
     }
-    if (pathname === "/snapshot") return Response.json(this.stats.snapshot());
+    if (pathname === "/snapshot") return Response.json({ ...this.stats.snapshot(), usage: await this.usage() });
     return new Response("Not found", { status: 404 });
+  }
+
+  private async usage() {
+    if (!this.env.CF_ANALYTICS_TOKEN || !this.env.CF_ACCOUNT_ID) return null;
+    const last = this.kv.get<string>("usage:last");
+    const cached = last ? (JSON.parse(last) as { at: number; days: UsageDay[]; error?: string }) : null;
+    if (!cached || Date.now() - cached.at > USAGE_EVERY_MS) await this.refreshUsage(cached);
+    const fresh = JSON.parse(this.kv.get<string>("usage:last") ?? "null") as { at: number; days: UsageDay[]; error?: string } | null;
+    const months = [...this.kv.list<string>({ prefix: "usage:month:" })].map(([, value]) => JSON.parse(value) as { month: string; gb: number });
+    const cost = costOf(months.map(({ month, gb }) => ({ date: `${month}-01`, bytes: gb * 1e9 })));
+    return { at: fresh?.at ?? null, error: fresh?.error ?? null, days: fresh?.days ?? [], cost };
+  }
+
+  private async refreshUsage(previous: { days: UsageDay[] } | null) {
+    const today = new Date().toISOString().slice(0, 10);
+    const windowStart = new Date(Date.now() - USAGE_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10);
+    const start = windowStart > LIVE_SINCE ? windowStart : LIVE_SINCE;
+    try {
+      const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+        method: "POST",
+        headers: { authorization: `Bearer ${this.env.CF_ANALYTICS_TOKEN}`, "content-type": "application/json" },
+        body: JSON.stringify({ query: USAGE_QUERY, variables: { account: this.env.CF_ACCOUNT_ID, start, end: today } }),
+      });
+      const days = daysFrom(await response.json());
+      // A month is only replaced when the window covers all of it; a month the window starts inside keeps what was stored.
+      for (const row of costOf(days).months)
+        if (start <= `${row.month}-01`) this.kv.put(`usage:month:${row.month}`, JSON.stringify({ month: row.month, gb: row.gb }));
+      this.kv.put("usage:last", JSON.stringify({ at: Date.now(), days }));
+    } catch (error) {
+      this.kv.put("usage:last", JSON.stringify({ at: Date.now(), days: previous?.days ?? [], error: (error as Error).message }));
+    }
   }
 }
