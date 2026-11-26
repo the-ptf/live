@@ -337,22 +337,38 @@ function drop(name, entry) {
 const GAP = 12;
 const RATIO = 16 / 9;
 
-/**
- * Fullscreen shows the whole tile, so the page keeps drawing the video and the browser's own player never takes over.
- * iPhones only let a <video> go fullscreen, through their player.
- */
-function toggleFullscreen(tile, video) {
-  const current = document.fullscreenElement ?? document.webkitFullscreenElement;
-  if (current) return void (document.exitFullscreen ?? document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
-  if (tile.requestFullscreen) return void tile.requestFullscreen().catch(() => {});
-  if (tile.webkitRequestFullscreen) return void tile.webkitRequestFullscreen();
-  video.webkitEnterFullscreen?.();
-}
+const EXPAND =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/></svg>';
+const SHRINK =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>';
 
 /**
- * Puts `nodes` in `container` in order, moving only what is out of place: a tile that leaves the page, even for a moment,
- * drops out of fullscreen.
+ * Full view, like Meet: one tile fills the page above the dock, inside the page rather than the browser's fullscreen,
+ * so the dock, the menus and everyone's sound stay where they are. It ends when its tile goes away.
  */
+let focusKey = null;
+
+function setFocus(key) {
+  focusKey = key;
+  paintFocus();
+}
+
+function paintFocus() {
+  if (focusKey && !tiles.get(focusKey)?.isConnected) focusKey = null;
+  for (const [key, tile] of tiles) {
+    const on = key === focusKey;
+    tile.classList.toggle("focused", on);
+    const button = tile.querySelector(".expand");
+    if (button.dataset.on === String(on)) continue;
+    button.dataset.on = String(on);
+    button.innerHTML = on ? SHRINK : EXPAND;
+    button.setAttribute("aria-label", on ? "Exit full view" : "Full view");
+    button.title = on ? "Exit full view (Esc)" : "Full view";
+  }
+  $("room").classList.toggle("focusing", Boolean(focusKey));
+}
+
+/** Puts `nodes` in `container` in order, moving only what is out of place, so playing videos aren't interrupted. */
 function placeChildren(container, nodes) {
   const keep = new Set(nodes);
   for (const child of Array.from(container.children)) if (!keep.has(child)) child.remove();
@@ -365,11 +381,9 @@ function makeTile(key) {
   const tile = document.createElement("figure");
   tile.className = "tile";
   const video = Object.assign(document.createElement("video"), { autoplay: true, muted: true, playsInline: true });
-  video.addEventListener("click", () => toggleFullscreen(tile, video));
   // A live picture is never meant to stop: Safari and iPhones pause it on leaving their video player, and nothing else
   // would start it again, so the picture froze on its last frame.
   video.addEventListener("pause", () => video.srcObject && video.play().catch(() => {}));
-  video.addEventListener("webkitendfullscreen", () => video.play().catch(() => {}));
   const avatar = Object.assign(document.createElement("div"), { className: "avatar" });
   const remove = Object.assign(document.createElement("button"), { type: "button", className: "remove", hidden: true });
   const volume = Object.assign(document.createElement("label"), { className: "volume", hidden: true });
@@ -379,7 +393,10 @@ function makeTile(key) {
     setVolume(volume.dataset.group, Number(slider.value) / 100);
     paintVolume(volume);
   });
-  tile.append(avatar, video, document.createElement("figcaption"), remove, volume);
+  const expand = Object.assign(document.createElement("button"), { type: "button", className: "expand" });
+  expand.addEventListener("click", () => setFocus(focusKey === key ? null : key));
+  video.addEventListener("dblclick", () => setFocus(focusKey === key ? null : key));
+  tile.append(avatar, video, document.createElement("figcaption"), remove, volume, expand);
   tiles.set(key, tile);
   return tile;
 }
@@ -436,7 +453,7 @@ function tileFor(key, { label, stream, kind, mine = false, look, working = false
     remove.dataset.name = removable.name;
     disarm(remove);
   }
-  tile.className = `tile ${kind}${mine ? " mine" : ""}${stream ? " has-video" : ""}${voice && speakingNow.has(voice) ? " speaking" : ""}`;
+  tile.className = `tile ${kind}${mine ? " mine" : ""}${stream ? " has-video" : ""}${voice && speakingNow.has(voice) ? " speaking" : ""}${key === focusKey ? " focused" : ""}`;
   if (voice) tile.dataset.voice = voice;
   const video = tile.querySelector("video");
   if (video.srcObject !== (stream ?? null)) video.srcObject = stream ?? null;
@@ -570,6 +587,7 @@ function render() {
     }
   placeChildren($("screens"), screens);
   placeChildren($("gallery"), people);
+  paintFocus();
   layout();
 }
 
@@ -1079,7 +1097,11 @@ $("more-button").addEventListener("click", (event) => {
   toggleMenu("more-menu");
 });
 document.addEventListener("click", (event) => !event.target.closest(".menu") && closeMenus());
-document.addEventListener("keydown", (event) => event.key === "Escape" && closeMenus());
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (focusKey && [...document.querySelectorAll(".menu")].every((menu) => menu.hidden) && !document.querySelector("dialog[open]")) setFocus(null);
+  closeMenus();
+});
 document.addEventListener("click", (event) => {
   const button = event.target.closest("button.remove");
   if (!button) return;

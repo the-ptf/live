@@ -138,8 +138,9 @@ npm run deploy       # needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in t
 - `screen-quality.cjs`: what a share may send at each quality and focus, changed while sharing.
 - `bots.cjs`: a bot holds still, hops after a click, and settles again.
 - `volume.cjs`: a person's voice and a shared screen's sound turned down on one side only, kept after rejoining.
-- `fullscreen.cjs`: a tile going fullscreen and back keeps drawing frames, stays fullscreen when someone joins, and a
-  paused live video starts again.
+- `fullscreen.cjs`: the full view button on hover, a tile filling the page (not the browser's fullscreen) and back
+  with Escape while it keeps drawing frames, full view surviving someone joining and ending when its person leaves, and
+  a paused live video starting again.
 - `screen-audio.cjs`: a shared tab's sound reaching and playing at the other person, and stopping with the share.
 - `voice.cjs`: a voice reaching the other person, the speaking ring, mute, deafen, and the camera rate at six people.
 - `gallery.cjs`, `menus.cjs`: screenshots of a six-person room, a shared screen, a phone and the dock menus.

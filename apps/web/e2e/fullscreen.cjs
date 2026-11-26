@@ -53,20 +53,42 @@ const framesPerSecond = (p) =>
   await ana.click("#camera");
   const bia = await join("Bia", ana.url());
   await bia.waitForFunction((selector) => [...document.querySelectorAll(selector)].some((video) => video.videoWidth > 0), { timeout: 20000 }, ANA);
-  console.log("before fullscreen:", await framesPerSecond(bia));
-  await bia.click(ANA);
-  await bia.waitForFunction(() => document.fullscreenElement?.tagName === "FIGURE", { timeout: 5000 });
-  console.log("ok: the tile is fullscreen, not the video element");
+  console.log("before full view:", await framesPerSecond(bia));
+  await bia.evaluate(() => {
+    [...document.querySelectorAll("#gallery figure")].find((figure) => figure.querySelector("figcaption").textContent.startsWith("Ana")).id = "ana-tile";
+  });
+  const anaTile = "#ana-tile";
+  await bia.hover(anaTile);
+  await new Promise((r) => setTimeout(r, 300));
+  const shown = await bia.$eval(`${anaTile} .expand`, (button) => getComputedStyle(button).opacity);
+  console.log("ok: hovering Ana's tile shows the full view button, opacity", shown);
+  await bia.click(`${anaTile} .expand`);
+  await bia.waitForFunction((tile) => document.querySelector(tile).classList.contains("focused"), { timeout: 5000 }, anaTile);
+  const box = await bia.$eval(anaTile, (tile) => {
+    const rect = tile.getBoundingClientRect();
+    return { width: Math.round(rect.width), height: Math.round(rect.height), browserFullscreen: Boolean(document.fullscreenElement) };
+  });
+  console.log("ok: Ana's tile fills the page, not the browser's fullscreen:", JSON.stringify(box));
+  if (box.width < 1100 || box.height < 650 || box.browserFullscreen) throw new Error("full view did not fill the page");
+  await bia.screenshot({ path: `${OUT}/full-view.png` });
   await join("Cris", ana.url());
   await bia.waitForFunction(() => document.getElementById("people").textContent === "3 people here", { timeout: 15000 });
-  console.log("still fullscreen after someone joins:", await bia.evaluate(() => document.fullscreenElement?.tagName ?? "no"));
-  console.log("in fullscreen:", await framesPerSecond(bia));
-  await bia.click(ANA);
-  await bia.waitForFunction(() => !document.fullscreenElement, { timeout: 5000 });
-  console.log("after leaving fullscreen:", await framesPerSecond(bia));
+  console.log("still in full view after someone joins:", await bia.$eval(anaTile, (tile) => tile.classList.contains("focused")));
+  console.log("in full view:", await framesPerSecond(bia));
+  await bia.keyboard.press("Escape");
+  await bia.waitForFunction(() => !document.querySelector(".tile.focused") && !document.getElementById("room").classList.contains("focusing"), {
+    timeout: 5000,
+  });
+  console.log("ok: Escape leaves full view");
+  console.log("after leaving full view:", await framesPerSecond(bia));
   await bia.evaluate((selector) => document.querySelector(selector).pause(), ANA);
   await new Promise((r) => setTimeout(r, 300));
   console.log("after something pauses it:", await framesPerSecond(bia));
+  await bia.click(`${anaTile} .expand`);
+  await bia.waitForFunction(() => document.getElementById("room").classList.contains("focusing"), { timeout: 5000 });
+  await ana.click("#leave");
+  await bia.waitForFunction(() => !document.getElementById("room").classList.contains("focusing"), { timeout: 15000 });
+  console.log("ok: full view ends when Ana leaves");
   await browser.close();
   console.log("done");
 })().catch((e) => {
