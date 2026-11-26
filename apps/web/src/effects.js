@@ -1,3 +1,5 @@
+import { createFaceTracker } from "./face.js";
+
 export const EFFECTS = [
   { id: "none", name: "None" },
   { id: "big-head", name: "Big head" },
@@ -28,12 +30,39 @@ uniform sampler2D camera;
 uniform int mode;
 uniform float time;
 uniform float aspect;
+uniform vec3 face;
+uniform sampler2D person;
+uniform float hasPerson;
 
 vec2 lens(vec2 p, vec2 center, float radius, float k) {
   vec2 d = (p - center) * vec2(aspect, 1.0);
   float dist = length(d) / radius;
   if (dist >= 1.0 || dist < 0.0001) return p;
   return center + d / dist * pow(dist, k) * radius / vec2(aspect, 1.0);
+}
+
+// Scales everything inside the circle evenly by m (bigger when m > 1), easing back to the untouched picture near the
+// edge, so a face grows or shrinks without bending.
+vec2 zoom(vec2 p, vec2 center, float radius, float m) {
+  vec2 d = (p - center) * vec2(aspect, 1.0);
+  float dist = length(d) / radius;
+  if (dist >= 1.0) return p;
+  float scale = mix(1.0 / m, 1.0, smoothstep(0.55, 1.0, dist));
+  return center + d * scale / vec2(aspect, 1.0);
+}
+
+// Snapchat's big head: the head, an oval around the face with a soft edge, drawn bigger from the chin up, so a giant
+// head sits on a normal-size body.
+vec4 bigHead(vec2 p, vec2 face, float size) {
+  vec2 head = face + vec2(0.0, size * 0.14);
+  vec2 radii = vec2(size * 0.78, size * 0.85);
+  vec2 chin = vec2(face.x, face.y - size * 0.55);
+  float grow = 1.8;
+  vec2 q = chin + (p - chin) / grow;
+  float dist = length((q - head) * vec2(aspect, 1.0) / radii);
+  float inside = 1.0 - smoothstep(0.82, 1.0, dist);
+  if (hasPerson > 0.5) inside *= smoothstep(0.35, 0.75, texture2D(person, clamp(q, 0.0, 1.0)).r);
+  return mix(texture2D(camera, clamp(p, 0.0, 1.0)), texture2D(camera, clamp(q, 0.0, 1.0)), inside);
 }
 
 vec2 swirl(vec2 p, vec2 center, float radius, float turns) {
@@ -48,11 +77,16 @@ vec2 swirl(vec2 p, vec2 center, float radius, float turns) {
 
 void main() {
   vec2 p = uv;
-  if (mode == 1) p = lens(p, vec2(0.5, 0.58), 0.46, 1.9);
-  else if (mode == 2) p = lens(p, vec2(0.5, 0.52), 0.5, 0.55);
-  else if (mode == 3) p = lens(p, vec2(0.5, 0.5), 0.85, 1.45);
-  else if (mode == 4) p = swirl(p, vec2(0.5, 0.52), 0.55, 3.2 + sin(time * 0.8) * 0.6);
-  else if (mode == 5) p.x = 0.5 + (p.x - 0.5) * (1.0 + 0.65 * cos((p.y - 0.5) * 3.1416));
+  vec2 center = face.xy;
+  float size = face.z;
+  if (mode == 1) {
+    gl_FragColor = bigHead(p, center, size);
+    return;
+  }
+  if (mode == 2) p = zoom(p, center, size * 1.0, 0.6);
+  else if (mode == 3) p = lens(p, center, max(0.6, size * 2.1), 1.45);
+  else if (mode == 4) p = swirl(p, center, size * 1.35, 3.2 + sin(time * 0.8) * 0.6);
+  else if (mode == 5) p.x = center.x + (p.x - center.x) * (1.0 + 0.65 * cos((p.y - center.y) * 3.1416));
   else if (mode == 6) p += vec2(0.025 * sin(p.y * 18.0 + time * 4.0), 0.018 * sin(p.x * 14.0 + time * 3.0));
   gl_FragColor = texture2D(camera, clamp(p, 0.0, 1.0));
 }`;
@@ -103,7 +137,25 @@ export function createEffectCamera(cameraTrack, effect) {
     mode: gl.getUniformLocation(linked, "mode"),
     time: gl.getUniformLocation(linked, "time"),
     aspect: gl.getUniformLocation(linked, "aspect"),
+    face: gl.getUniformLocation(linked, "face"),
+    person: gl.getUniformLocation(linked, "person"),
+    hasPerson: gl.getUniformLocation(linked, "hasPerson"),
   };
+  gl.uniform1i(gl.getUniformLocation(linked, "camera"), 0);
+  gl.uniform1i(uniforms.person, 1);
+  const personTexture = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, personTexture);
+  for (const [name, value] of [
+    [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE],
+    [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE],
+    [gl.TEXTURE_MIN_FILTER, gl.LINEAR],
+    [gl.TEXTURE_MAG_FILTER, gl.LINEAR],
+  ])
+    gl.texParameteri(gl.TEXTURE_2D, name, value);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.activeTexture(gl.TEXTURE0);
+  let maskVersion = 0;
 
   const video = Object.assign(document.createElement("video"), { muted: true, playsInline: true, srcObject: new MediaStream([cameraTrack]) });
   video.play().catch(() => {});
@@ -113,6 +165,10 @@ export function createEffectCamera(cameraTrack, effect) {
   const [track] = canvas.captureStream(30).getVideoTracks();
   let mode = MODE[effect] ?? 0;
   let stopped = false;
+  // Big head, Pinch, Fisheye, Swirl and Funhouse center on the face; Wave moves the whole picture.
+  const followsFace = () => mode >= 1 && mode <= 5;
+  let tracker = followsFace() ? createFaceTracker(video) : null;
+  tracker?.useMask(mode === 1);
   const started = performance.now();
 
   const draw = () => {
@@ -124,9 +180,19 @@ export function createEffectCamera(cameraTrack, effect) {
       }
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+      const mask = mode === 1 ? tracker?.mask : null;
+      if (mask && mask.version !== maskVersion) {
+        maskVersion = mask.version;
+        gl.activeTexture(gl.TEXTURE1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, mask.width, mask.height, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, mask.data);
+        gl.activeTexture(gl.TEXTURE0);
+      }
+      gl.uniform1f(uniforms.hasPerson, mask ? 1 : 0);
       gl.uniform1i(uniforms.mode, mode);
       gl.uniform1f(uniforms.time, (performance.now() - started) / 1000);
       gl.uniform1f(uniforms.aspect, canvas.width / canvas.height);
+      const face = tracker?.step() ?? { x: 0.5, y: 0.52, size: 0.42 };
+      gl.uniform3f(uniforms.face, face.x, face.y, face.size);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
     schedule();
@@ -138,9 +204,15 @@ export function createEffectCamera(cameraTrack, effect) {
     track,
     setEffect(id) {
       mode = MODE[id] ?? 0;
+      if (followsFace()) tracker ??= createFaceTracker(video);
+      tracker?.useMask(mode === 1);
+    },
+    get tracker() {
+      return tracker;
     },
     stop() {
       stopped = true;
+      tracker?.stop();
       track.stop();
       video.srcObject = null;
       gl.getExtension("WEBGL_lose_context")?.loseContext();

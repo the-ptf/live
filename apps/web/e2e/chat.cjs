@@ -7,7 +7,39 @@ const CHROME =
 const BASE = process.env.LIVE_URL ?? "http://localhost:8799";
 const OUT = process.env.E2E_OUT ?? "/tmp/live-e2e";
 fs.mkdirSync(OUT, { recursive: true });
-const PICTURE = process.env.CHAT_PICTURE ?? "/tmp/live-chat-fixture/pic.png";
+// A small gradient PNG written next to the screenshots, so the test needs no fixture on disk.
+const zlib = require("node:zlib");
+const PICTURE = `${OUT}/chat-picture.png`;
+{
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const out = Buffer.alloc(8 + data.length + 4);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(zlib.crc32(body) >>> 0, 8 + data.length);
+    return out;
+  };
+  const [width, height] = [64, 40];
+  const rows = [];
+  for (let y = 0; y < height; y++) {
+    const row = Buffer.alloc(1 + width * 3);
+    for (let x = 0; x < width; x++) row.set([x * 4, y * 6, 180], 1 + x * 3);
+    rows.push(row);
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  fs.writeFileSync(
+    PICTURE,
+    Buffer.concat([
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      chunk("IHDR", header),
+      chunk("IDAT", zlib.deflateSync(Buffer.concat(rows))),
+      chunk("IEND", Buffer.alloc(0)),
+    ]),
+  );
+}
 
 // The room chat: text with a link and code, the unread badge, a picture, and history for whoever joins later.
 (async () => {

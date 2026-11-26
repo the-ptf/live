@@ -1,5 +1,6 @@
 import { build } from "esbuild";
 import { copyFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { createRequire } from "node:module";
 
 // RNNoise's worklet and wasm (an AudioWorklet loads by URL) and the landing page's fonts are served as files, so they are
@@ -14,6 +15,20 @@ for (const [from, to] of [
   ["@fontsource-variable/geist/files/geist-latin-wght-normal.woff2", "geist.bin"],
 ])
   copyFileSync(require.resolve(from), dist + to);
+
+// The face detector for camera effects is a few MB of wasm, too big to bundle into the Worker: it goes out as static
+// assets under /face/, loaded only when someone turns an effect on.
+const face = new URL("./dist/assets/face/", import.meta.url).pathname;
+mkdirSync(face, { recursive: true });
+const vision = dirname(require.resolve("@mediapipe/tasks-vision"));
+for (const [from, to] of [
+  [`${vision}/vision_bundle.mjs`, "vision_bundle.mjs"],
+  [`${vision}/wasm/vision_wasm_internal.js`, "vision_wasm_internal.js"],
+  [`${vision}/wasm/vision_wasm_internal.wasm`, "vision_wasm_internal.wasm"],
+  [new URL("./face/blaze_face_short_range.tflite", import.meta.url).pathname, "blaze_face_short_range.tflite"],
+  [new URL("./face/selfie_segmenter.tflite", import.meta.url).pathname, "selfie_segmenter.tflite"],
+])
+  copyFileSync(from, face + to);
 
 await build({
   entryPoints: [new URL("./src/landing.js", import.meta.url).pathname],

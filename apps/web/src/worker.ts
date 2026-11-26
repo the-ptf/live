@@ -28,6 +28,7 @@ interface Env {
   TURN_KEY_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
   CF_ANALYTICS_TOKEN?: string;
+  ASSETS: Fetcher;
 }
 
 const REALTIME = "https://rtc.live.cloudflare.com/v1";
@@ -147,6 +148,13 @@ export default {
       });
     if (request.method === "GET" && pathname === "/app.js")
       return new Response(script, { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache", ...SECURITY_HEADERS } });
+    if (request.method === "GET" && pathname.startsWith("/face/")) {
+      const asset = await env.ASSETS.fetch(request);
+      const out = new Response(asset.body, asset);
+      out.headers.set("cache-control", "public, max-age=604800");
+      for (const [key, value] of Object.entries(SECURITY_HEADERS)) out.headers.set(key, value);
+      return out;
+    }
     const file = STATIC_FILES[pathname];
     if (request.method === "GET" && file)
       return new Response(file.body, { headers: { "content-type": file.type, "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });

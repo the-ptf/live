@@ -9,6 +9,12 @@ command = "node build.mjs"
 watch_dir = "src"
 
 # REALTIME_APP_ID, REALTIME_APP_TOKEN, TURN_KEY_ID, TURN_KEY_TOKEN and DASH_PASSWORD are Worker secrets; see README.md.
+# The face detector's files (see build.mjs); the Worker serves /face/ from here and runs first for everything else.
+[assets]
+directory = "./dist/assets"
+binding = "ASSETS"
+run_worker_first = true
+
 [vars]
 PUBLIC_ORIGIN = "https://live.milagre.cloud"
 

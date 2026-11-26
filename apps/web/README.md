@@ -72,6 +72,12 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   `media.mjs`), and each viewer subscribes with `priorityOrdering` and `ridNotAvailable` set to `asciibetical`, so
   Cloudflare drops a viewer whose connection can't keep up to the next layer instead of freezing the picture. A track
   only announces the layers its sender really has.
+- Camera effects follow the face, on the device: MediaPipe's BlazeFace detector (`face.js`, about 12 times a second)
+  gives the face's center and size, eased between frames (`face-math.mjs`), and Big head, Pinch, Fisheye, Swirl and
+  Funhouse center on it. Big head works like Snapchat's: the selfie segmenter cuts out the person, and the head (an
+  oval around the face, person pixels only) is drawn 1.8 times bigger from the chin up. The wasm and both models are
+  Workers static assets under `/face/` (copied by `build.mjs`, about 4 MB compressed), loaded only when someone first
+  turns an effect on. With no face found the effect stays centered.
 - `/dash` is the owner's stats: rooms open, people live, cameras, screens, an upper bound on video GB/hour, and the
   day's joins, rooms started and peak. Each room reports its roster on every change to one `LiveStats` Durable Object;
   a room silent for 12 hours drops off. The page signs in with the `DASH_PASSWORD` secret and keeps a 30-day HttpOnly
