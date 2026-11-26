@@ -1,3 +1,5 @@
+import { FREE_GB_PER_MONTH, forecastOf } from "./usage.mjs";
+
 const COOKIE = "live_dash";
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const encoder = new TextEncoder();
@@ -65,6 +67,8 @@ input{font:inherit;color:var(--ink);height:36px;padding:0 12px;border-radius:8px
 .plot .y{position:absolute;left:-30px;width:24px;text-align:right;color:var(--ink-3);font-size:11px;transform:translateY(-50%)}
 .x{display:flex;justify-content:space-between;margin-left:30px;color:var(--ink-3);font-size:11px}
 .grid line{stroke:var(--line);stroke-width:1}
+.plot .free{position:absolute;right:0;transform:translateY(-120%);color:var(--red);font-size:11px;font-weight:600}
+.wide{grid-column:1/-1}
 @media(max-width:640px){.hide-small{display:none}}
 `;
 
@@ -158,11 +162,51 @@ function costCards(snapshot) {
   const since = usage.cost.months[0]?.month;
   const checked = usage.at ? `Cloudflare, checked ${Math.max(0, Math.round((Date.now() - usage.at) / 60000))} min ago` : "Cloudflare";
   return `<h2>Cost <span class="muted">${escape(checked)}${usage.error ? ` · last check failed: ${escape(usage.error)}` : ""}</span></h2>
-<div class="cards">${card(usd(current.cost), "This month")}${card(usd(usage.cost.totalCost), since ? `So far, since ${since}` : "So far")}${card(gbText(current.gb), "Video sent this month")}${card(gbText(current.freeLeftGb), "Free left this month, of 1,000 GB")}${card(gbText(turn), "Relayed by TURN, free")}</div>`;
+<div class="cards">${card(usd(current.cost), "This month")}${card(usd(usage.cost.totalCost), since ? `So far, since ${since}` : "So far")}${card(gbText(current.gb), "Video sent this month")}${card(gbText(current.freeLeftGb), "Free left this month, of 1,000 GB")}${card(usd(forecastOf(usage.days, new Date().toISOString().slice(0, 10)).projectedCost), "Month end, at this pace")}${card(gbText(turn), "Relayed by TURN, free")}</div>`;
 }
 
-function charts(snapshot) {
-  return `<div class="charts">${chartCard(
+const shortDate = (date) => `${Number(date.slice(8))}/${Number(date.slice(5, 7))}`;
+
+/** This month's video so far and, dashed, where it ends if the last week's pace holds, against the free 1,000 GB. */
+function forecastChart(snapshot, now) {
+  const days = snapshot.usage?.days;
+  if (!days?.length) return "";
+  const forecast = forecastOf(days, new Date(now).toISOString().slice(0, 10));
+  const { month, dayOfMonth, daysInMonth, sent, soFarGb, projectedGb } = forecast;
+  const showFree = projectedGb >= FREE_GB_PER_MONTH * 0.4;
+  const max = niceMax(Math.max(projectedGb, showFree ? FREE_GB_PER_MONTH * 1.05 : 0));
+  const x = (day) => ((day - 1) / (daysInMonth - 1)) * 100;
+  const y = (gb) => 100 - (gb / max) * 100;
+  const line = sent.map((gb, index) => `${index ? "L" : "M"}${x(index + 1).toFixed(2)},${y(gb).toFixed(2)}`).join("");
+  const stroke = 'stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"';
+  const shapes = `<path d="${line}L${x(dayOfMonth).toFixed(2)},100L0,100Z" fill="${PURPLE}" fill-opacity="0.16"/>
+<path d="${line}" fill="none" stroke="${PURPLE}" ${stroke}/>
+<path d="M${x(dayOfMonth).toFixed(2)},${y(soFarGb).toFixed(2)}L100,${y(projectedGb).toFixed(2)}" fill="none" stroke="${PURPLE}" stroke-opacity="0.7" stroke-dasharray="5 4" ${stroke}/>
+${showFree ? `<line x1="0" x2="100" y1="${y(FREE_GB_PER_MONTH).toFixed(2)}" y2="${y(FREE_GB_PER_MONTH).toFixed(2)}" stroke="var(--red)" stroke-dasharray="2 3" ${stroke}/>` : ""}`;
+  const plot = frame(max, shapes).replace("</div>", showFree ? `<span class="free" style="top:${y(FREE_GB_PER_MONTH)}%">Free 1,000 GB</span></div>` : "</div>");
+  const pace = forecast.basedOnDays
+    ? `${gbText(forecast.perDay)} a day, last ${forecast.basedOnDays} day${forecast.basedOnDays > 1 ? "s" : ""}`
+    : `${gbText(forecast.perDay)} today so far`;
+  const verdict =
+    soFarGb >= FREE_GB_PER_MONTH
+      ? `past the free 1,000 GB, month ends near ${usd(forecast.projectedCost)}`
+      : forecast.freeRunsOutOn
+        ? `free runs out ${shortDate(forecast.freeRunsOutOn)}, month ends near ${usd(forecast.projectedCost)}`
+        : `month ends near ${gbText(projectedGb)}, ${Math.round((projectedGb / FREE_GB_PER_MONTH) * 100)}% of the free 1,000 GB, $0`;
+  const head = `${legend([
+    ["Sent", PURPLE],
+    ["At this pace", `${PURPLE}b3`],
+  ])}<span class="muted" style="flex-basis:100%">${escape(pace)} · ${escape(verdict)} · a full month at this pace costs ${escape(usd(forecast.monthAtPaceCost))}</span>`;
+  const middle = `${month}-${String(Math.ceil(daysInMonth / 2)).padStart(2, "0")}`;
+  return `<div class="wide">${chartCard(
+    "This month, and where it ends",
+    head,
+    `${plot}<div class="x"><span>1/${Number(month.slice(5))}</span><span>${shortDate(middle)}</span><span>${daysInMonth}/${Number(month.slice(5))}</span></div>`,
+  )}</div>`;
+}
+
+function charts(snapshot, now) {
+  return `<div class="charts">${forecastChart(snapshot, now)}${chartCard(
     "Last 24 hours",
     legend([
       ["People", BLUE],
@@ -205,7 +249,7 @@ export function renderDash(snapshot, now) {
 <div class="cards">${card(totals.rooms, "Rooms open")}${card(totals.people, "People live")}${card(totals.cameras, "Cameras on")}${card(totals.screens, "Screens shared")}${card(totals.mics ?? 0, "Mics on")}${card(`${totals.gbPerHour.toFixed(1)} GB/h`, "Video right now, at most")}</div>
 <h2>Today (UTC)</h2><div class="cards">${card(today.joins, "Joins")}${card(today.rooms, "Rooms started")}${card(today.peak, "Most people at once")}${card(yesterday.joins, "Joins yesterday")}</div>
 ${costCards(snapshot)}
-${charts(snapshot)}
+${charts(snapshot, now)}
 <h2>Open rooms</h2>${table}</main>`,
     true,
   );

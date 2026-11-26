@@ -50,3 +50,49 @@ export function daysFrom(answer) {
     }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const shiftDate = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * Where this month ends if the pace holds: the pace is the average GB a day over the last complete days (up to a week,
+ * never before the first day with any video), today counts as it stands, and every day left sends the pace.
+ */
+export function forecastOf(days, today, { freeGb = FREE_GB_PER_MONTH, perGb = USD_PER_GB, windowDays = 7 } = {}) {
+  const gbOn = new Map(days.map((day) => [day.date, day.bytes / GB]));
+  const first = days.find((day) => day.bytes > 0)?.date;
+  const window = [];
+  for (let back = 1; back <= windowDays; back++) {
+    const date = shiftDate(today, -back);
+    if (!first || date < first) break;
+    window.push(gbOn.get(date) ?? 0);
+  }
+  const todayGb = gbOn.get(today) ?? 0;
+  const perDay = window.length ? window.reduce((sum, gb) => sum + gb, 0) / window.length : todayGb;
+  const [year, monthNumber, dayOfMonth] = today.split("-").map(Number);
+  const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  const month = today.slice(0, 7);
+  const sent = [];
+  let soFarGb = 0;
+  for (let day = 1; day <= dayOfMonth; day++) {
+    soFarGb += gbOn.get(`${month}-${String(day).padStart(2, "0")}`) ?? 0;
+    sent.push(soFarGb);
+  }
+  const projectedGb = soFarGb + perDay * (daysInMonth - dayOfMonth);
+  let freeRunsOutOn = null;
+  if (soFarGb >= freeGb) freeRunsOutOn = today;
+  else if (projectedGb > freeGb) freeRunsOutOn = shiftDate(today, Math.ceil((freeGb - soFarGb) / perDay));
+  return {
+    month,
+    dayOfMonth,
+    daysInMonth,
+    perDay,
+    basedOnDays: window.length,
+    sent,
+    soFarGb,
+    projectedGb,
+    projectedCost: Math.max(0, projectedGb - freeGb) * perGb,
+    monthAtPaceCost: Math.max(0, perDay * 30 - freeGb) * perGb,
+    freeRunsOutOn,
+  };
+}

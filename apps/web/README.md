@@ -65,7 +65,8 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   Analytics API for Realtime SFU and TURN egress per day (`callsUsageAdaptiveGroups`, `callsTurnUsageAdaptiveGroups`)
   at most every 5 minutes and keeps each month's total, since the API only reaches back about 90 days. Cost is the
   egress past 1,000 GB a month at $0.05/GB (`usage.mjs`); TURN is free next to the SFU. Without `CF_ANALYTICS_TOKEN`
-  the page falls back to the estimate.
+  the page falls back to the estimate. The forecast chart holds the average of the last complete days (up to a week)
+  to the end of the month (`forecastOf`) and says when the free 1,000 GB would run out.
 - The browser opens its Realtime session with a data channel and waits until it's connected before pushing or pulling:
   Realtime refuses either on a session that isn't connected, and Chrome rejects the answer to an idle audio or video
   line. A dropped connection rejoins quietly.
