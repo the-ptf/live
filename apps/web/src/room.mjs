@@ -171,7 +171,11 @@ export function createRoom({ io, store, realtime, iceServers, onChange = () => {
         if (!track || !SOURCES.has(track.source) || !TRACK_NAME.test(track.name ?? "")) return;
         if (!track.name.startsWith(`${entry.peer.id}-${track.source}-`)) return;
         const kbps = track.source === "screen" && Number.isInteger(track.kbps) && track.kbps >= 100 && track.kbps <= 20_000 ? track.kbps : undefined;
-        tracks.push(kbps ? { name: track.name, source: track.source, kbps } : { name: track.name, source: track.source });
+        const layers =
+          track.source === "screen" && Array.isArray(track.layers) && track.layers.length <= 3 && track.layers.every((rid) => /^[a-z]$/.test(rid))
+            ? [...track.layers]
+            : undefined;
+        tracks.push({ name: track.name, source: track.source, ...(kbps ? { kbps } : {}), ...(layers?.length ? { layers } : {}) });
       }
       io.save(socket, { ...entry.peer, tracks });
       broadcast();

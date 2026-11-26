@@ -3,7 +3,7 @@ import { botSvg, hideBot, loadLook, lookFor, openPicker, showBot } from "./avata
 import { createPreview } from "./preview.js";
 import { EFFECTS, createEffectCamera, loadEffect, saveEffect } from "./effects.js";
 import { noiseSuppression, setNoiseSuppression, suppressNoise } from "./noise.js";
-import { cameraEncoding, DEFAULT_SCREEN_PRESET, SCREEN_AUDIO_BITRATE, SCREEN_PRESETS } from "./media.mjs";
+import { cameraEncoding, DEFAULT_SCREEN_PRESET, SCREEN_AUDIO_BITRATE, SCREEN_PRESETS, screenLayers } from "./media.mjs";
 import { playVoice, setDeafened, setVolume, stopAllVoices, stopVoice, unwatchLevel, volumeOf, watchLevel } from "./voice.js";
 
 const $ = (id) => document.getElementById(id);
@@ -199,18 +199,29 @@ function tuneScreen() {
   const sender = entry.transceiver?.sender;
   if (!sender) return;
   const parameters = sender.getParameters();
-  const [encoding] = parameters.encodings ?? [];
-  if (!encoding) return;
-  Object.assign(encoding, { maxBitrate: preset.bitrate, maxFramerate: preset.fps });
+  if (!parameters.encodings?.length) return;
+  const wanted = new Map(screenLayers(preset).map((layer) => [layer.rid, layer]));
+  for (const encoding of parameters.encodings) {
+    const layer = wanted.get(encoding.rid) ?? wanted.get("f");
+    Object.assign(encoding, { maxBitrate: layer.maxBitrate, maxFramerate: layer.maxFramerate });
+  }
   parameters.degradationPreference = screenBest() === "text" ? "maintain-resolution" : "maintain-framerate";
   sender.setParameters(parameters).catch(() => {});
 }
+
+/** The simulcast layers the browser really sends: one that couldn't make them sends a single unnamed encoding. */
+const sentLayers = (entry) => {
+  const rids = (entry.transceiver?.sender.getParameters().encodings ?? []).map((encoding) => encoding.rid).filter(Boolean);
+  return rids.length > 1 ? rids : [];
+};
 
 function announce() {
   const tracks = [...local]
     .filter(([, entry]) => entry.name)
     .map(([source, entry]) =>
-      source === "screen" ? { name: entry.name, source, kbps: Math.round(screenPreset().bitrate / 1000) } : { name: entry.name, source },
+      source === "screen"
+        ? { name: entry.name, source, kbps: Math.round(screenPreset().bitrate / 1000), layers: sentLayers(entry) }
+        : { name: entry.name, source },
     );
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "publish", tracks }));
 }
@@ -221,7 +232,7 @@ function push(source) {
     if (!entry || entry.name || !pc || !sessionId) return;
     const encodings = {
       camera: [cameraEncoding(peers.length)],
-      screen: [{ maxBitrate: screenPreset().bitrate, maxFramerate: screenPreset().fps }],
+      screen: screenLayers(screenPreset()),
       "screen-audio": [{ maxBitrate: SCREEN_AUDIO_BITRATE }],
     }[source];
     const transceiver = pc.addTransceiver(entry.track, { direction: "sendonly", ...(encodings ? { sendEncodings: encodings } : {}) });
@@ -299,7 +310,14 @@ function pull(name, peer, track) {
   serial(async () => {
     if (remote.get(name) !== entry || !pc) return;
     const answer = await sfu("POST", `sessions/${sessionId}/tracks/new`, {
-      tracks: [{ location: "remote", sessionId: peer.sessionId, trackName: name }],
+      tracks: [
+        {
+          location: "remote",
+          sessionId: peer.sessionId,
+          trackName: name,
+          ...(track.layers?.length ? { simulcast: { preferredRid: track.layers[0], priorityOrdering: "asciibetical", ridNotAvailable: "asciibetical" } } : {}),
+        },
+      ],
     }).catch((error) => {
       remote.delete(name);
       throw error;

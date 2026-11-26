@@ -10,7 +10,7 @@ export interface Peer {
   name: string;
   token: string;
   sessionId: string | null;
-  tracks: { name: string; source: Source; kbps?: number }[];
+  tracks: { name: string; source: Source; kbps?: number; layers?: string[] }[];
   avatar: Avatar | null;
   host: boolean;
   client: string | null;

@@ -5,3 +5,8 @@ export const SCREEN_BITRATE: number;
 export const MIC_BITRATE: number;
 export const SCREEN_AUDIO_BITRATE: number;
 export function cameraEncoding(people: number): { maxBitrate: number; scaleResolutionDownBy: number };
+export const SCREEN_LAYERS: string[];
+export function screenLayers(preset: {
+  bitrate: number;
+  fps: number;
+}): { rid: string; maxBitrate: number; maxFramerate: number; scaleResolutionDownBy?: number }[];

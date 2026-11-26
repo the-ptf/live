@@ -31,8 +31,8 @@ const sending = (p) =>
       .getSenders()
       .find((item) => item.track?.kind === "video");
     const parameters = sender.getParameters();
-    const [encoding] = parameters.encodings;
-    return `${encoding.maxBitrate / 1e6} Mbps, ${encoding.maxFramerate} fps max, ${parameters.degradationPreference}, hint ${sender.track.contentHint}`;
+    const layers = parameters.encodings.map((encoding) => `${encoding.rid ?? "-"} ${encoding.maxBitrate / 1e6} Mbps ${encoding.maxFramerate} fps /${encoding.scaleResolutionDownBy ?? 1}`);
+    return `${layers.join(" | ")}, ${parameters.degradationPreference}, hint ${sender.track.contentHint}`;
   });
 // What Bia actually gets, from WebRTC stats. Headless Chrome's fake screen draws about 20 frames a second whatever it
 // claims, so this shows the path works, not the quality a real screen reaches.
@@ -87,6 +87,17 @@ const pick = async (p, selector) => {
   const bia = await join("Bia", ana.url());
   await bia.waitForFunction(() => [...document.querySelectorAll("#screens video")].some((video) => video.videoWidth > 0), { timeout: 20000 });
   console.log("default, Ana sends:", await sending(ana));
+  const announced = await bia.evaluate(() => document.querySelectorAll("#screens video").length);
+  const layers = await ana.evaluate(() =>
+    window.__pcs
+      .at(-1)
+      .getSenders()
+      .find((sender) => sender.track?.kind === "video")
+      .getParameters()
+      .encodings.map((encoding) => encoding.rid),
+  );
+  if (layers.join() !== "f,h,q") throw new Error(`expected simulcast layers f,h,q, got ${layers}`);
+  console.log("ok: Ana sends three simulcast layers and Bia shows", announced, "screen");
   console.log("default, Bia gets:", await receiving(bia));
   await pick(ana, '[data-quality="1080p60"]');
   await new Promise((r) => setTimeout(r, 500));

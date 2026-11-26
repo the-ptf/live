@@ -17,3 +17,17 @@ export const SCREEN_AUDIO_BITRATE = 128_000;
 export function cameraEncoding(people) {
   return people >= CROWDED_AT ? { maxBitrate: 300_000, scaleResolutionDownBy: 2 } : { maxBitrate: 900_000, scaleResolutionDownBy: 1 };
 }
+
+/**
+ * A screen share goes out as three layers, full, half and quarter size, named so Cloudflare's alphabetical fallback
+ * goes from best to worst: a viewer whose connection can't take the full layer gets the next one instead of a frozen
+ * picture. Text stays sharp on the full layer; the small ones only need to keep up.
+ */
+export const SCREEN_LAYERS = ["f", "h", "q"];
+export function screenLayers(preset) {
+  return [
+    { rid: "f", maxBitrate: preset.bitrate, maxFramerate: preset.fps },
+    { rid: "h", scaleResolutionDownBy: 2, maxBitrate: Math.round(preset.bitrate * 0.3), maxFramerate: preset.fps },
+    { rid: "q", scaleResolutionDownBy: 4, maxBitrate: Math.round(preset.bitrate * 0.1), maxFramerate: Math.min(preset.fps, 15) },
+  ];
+}
