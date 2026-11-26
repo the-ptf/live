@@ -15,7 +15,8 @@ name; there are no accounts. A room lives while someone is in it. It keeps no vi
   package's starters plus its gallery, copied into `src/bots.json` (license in `src/bots.LICENSE`). Each person picks a
   shape, a color and Flat or Fluffy (`src/avatars.js`); the choice is kept in the browser and sent as an `avatar`
   message, so everyone sees it. Fluffy bots share one WebGL context. Someone who hasn't sent one gets a bot from their
-  peer id.
+  peer id. Bots rest in a calm pose (`reducedMotion`, eyes still following the pointer) and hop for a moment when
+  clicked.
 - Voice (`src/voice.js`): the mic starts off; turning it on the first time publishes an Opus track. Muting after that
   keeps the mic open and sends silence (`track.enabled = false`), like Discord, and the room shares who is muted:
   stopping and reopening it on every click made other sound dip, from Bluetooth headsets changing mode and from
@@ -114,6 +115,7 @@ npm run deploy       # needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in t
 - `dash.cjs`: the stats login and the numbers for a live room.
 - `noise.cjs`: the mic going out through RNNoise and reaching the other person, and switching it off.
 - `screen-quality.cjs`: what a share may send at each quality and focus, changed while sharing.
+- `bots.cjs`: a bot holds still, hops after a click, and settles again.
 - `volume.cjs`: a person's voice and a shared screen's sound turned down on one side only, kept after rejoining.
 - `fullscreen.cjs`: a tile going fullscreen and back keeps drawing frames, stays fullscreen when someone joins, and a
   paused live video starts again.

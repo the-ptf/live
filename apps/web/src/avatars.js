@@ -9,6 +9,7 @@ const COLORS = ["#f4f4f4", "#a8693f", "#f2384b", "#ff6a1a", "#f8a01c", "#1fbf68"
 const MATERIALS = { flat: "flat", fluffy };
 const LOOK_KEY = "milagre-live:avatar";
 const mounted = new WeakMap();
+const HOP_MS = 1800;
 
 function hashOf(text) {
   let hash = 2166136261;
@@ -49,8 +50,9 @@ export function showBot(element, look, { working = false, follow = true } = {}) 
   const key = `${safe.shape} ${safe.color} ${safe.material}`;
   const state = working ? "working" : "idle";
   const current = mounted.get(element);
-  if (current?.key === key) return current.handle.update({ state });
+  if (current?.key === key) return current.handle.update({ state, reducedMotion: !current.hopping });
   current?.handle.destroy();
+  clearTimeout(current?.timer);
   const handle = mountAvatar(element, {
     definition: BOT_BY_ID.get(safe.shape),
     color: safe.color,
@@ -58,12 +60,34 @@ export function showBot(element, look, { working = false, follow = true } = {}) 
     mood: "happy",
     state,
     followPointer: follow,
+    reducedMotion: true,
     label: "",
   });
-  mounted.set(element, { key, handle });
+  mounted.set(element, { key, handle, hopping: false, timer: 0 });
+  if (!element.dataset.hops) {
+    element.dataset.hops = "1";
+    element.addEventListener("click", () => hop(element));
+  }
+}
+
+/**
+ * A bot rests in a calm pose (its eyes still follow the pointer) and only hops, a happy bot's idle motion, for a moment
+ * after someone clicks it: a room of bots bouncing all the time was too much.
+ */
+function hop(element) {
+  const current = mounted.get(element);
+  if (!current) return;
+  clearTimeout(current.timer);
+  current.hopping = true;
+  current.handle.update({ reducedMotion: false });
+  current.timer = setTimeout(() => {
+    current.hopping = false;
+    current.handle.update({ reducedMotion: true });
+  }, HOP_MS);
 }
 
 export function hideBot(element) {
+  clearTimeout(mounted.get(element)?.timer);
   mounted.get(element)?.handle.destroy();
   mounted.delete(element);
 }
